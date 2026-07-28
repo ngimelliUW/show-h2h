@@ -1,55 +1,56 @@
-"""Check the perspective switch is a true mirror, not just non-crashing.
+"""Check the you-are switch is a true mirror.
+
+The switch itself is JavaScript in the page (fromView / record), so this
+verifies the same invariant against the data those functions consume: reading
+every game from either side must produce mirrored records, and the two views
+must agree about which games happened.
 
 Run:  uv run python analysis/_flip.py
 """
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from streamlit.testing.v1 import AppTest  # noqa: E402
-
-from show_h2h import config  # noqa: E402
+from show_h2h import report  # noqa: E402
 
 
-def scoreboard_html(viewer: str) -> str:
-    at = AppTest.from_file("app/dashboard.py", default_timeout=180)
-    at.session_state["viewer"] = viewer
-    at.session_state["page"] = "Rivalry"
-    at.run()
-    if at.exception:
-        raise SystemExit(f"app raised for {viewer}: {at.exception[0].message}")
-    # The record lives in injected HTML rather than st.metric, and the strip is
-    # a separate block so the "you are" toggle can sit beside it — so join every
-    # markdown block and parse the lot.
-    return "\n".join(str(m.value) for m in at.markdown)
+def from_view(game: dict, who: str) -> dict:
+    """Python mirror of the page's fromView()."""
+    mine = game["home"].lower() == who.lower()
+    return {
+        "my": game["hr"] if mine else game["ar"],
+        "their": game["ar"] if mine else game["hr"],
+        "res": None if game["win"] is None
+        else ("W" if (game["win"] == "home") == mine else "L"),
+    }
 
 
-def parse(html: str) -> dict:
-    wins = re.findall(r'class="sb-wins[^"]*">(\d+)<', html)
-    strip = dict(re.findall(
-        r'class="sb-k">([^<]+)</span><span class="sb-v">([^<]+)<', html))
-    return {"wins": int(wins[0]), "losses": int(wins[1]), **strip}
+def record(games: list[dict], who: str) -> dict:
+    seen = [from_view(g, who) for g in games]
+    return {
+        "w": sum(g["res"] == "W" for g in seen),
+        "l": sum(g["res"] == "L" for g in seen),
+        "rf": sum(g["my"] for g in seen),
+        "ra": sum(g["their"] for g in seen),
+    }
 
 
-a = parse(scoreboard_html(config.MY_USERNAME))
-b = parse(scoreboard_html(config.FRIEND_USERNAME))
-print(f"{config.MY_USERNAME:15s} {a['wins']}–{a['losses']}  run diff {a['Run diff']}  "
-      f"streak {a['Streak']}")
-print(f"{config.FRIEND_USERNAME:15s} {b['wins']}–{b['losses']}  run diff {b['Run diff']}  "
-      f"streak {b['Streak']}")
+data = report.build()
+p1, p2 = data["players"]
+a, b = record(data["games"], p1), record(data["games"], p2)
+
+print(f"{p1:15s} {a['w']}–{a['l']}  runs {a['rf']}–{a['ra']}")
+print(f"{p2:15s} {b['w']}–{b['l']}  runs {b['rf']}–{b['ra']}\n")
 
 checks = {
-    "record is mirrored": (a["wins"], a["losses"]) == (b["losses"], b["wins"]),
-    "run diff is negated": int(a["Run diff"]) == -int(b["Run diff"]),
-    "runs are swapped": a["Runs"] == "–".join(reversed(b["Runs"].split("–"))),
-    "games identical": a["Games"] == b["Games"],
-    "streak flips W/L": a["Streak"][-1] != b["Streak"][-1],
+    "record is mirrored": (a["w"], a["l"]) == (b["l"], b["w"]),
+    "runs are swapped": (a["rf"], a["ra"]) == (b["ra"], b["rf"]),
+    "every game has a decision": a["w"] + a["l"] == len(data["games"]),
+    "no game counts as a win for both": a["w"] + b["w"] == len(data["games"]),
 }
-print()
 for name, passed in checks.items():
     print(f"{'PASS' if passed else 'FAIL'}  {name}")
 raise SystemExit(0 if all(checks.values()) else 1)

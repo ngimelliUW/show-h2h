@@ -136,14 +136,28 @@ src/show_h2h/
   client.py       API client: throttling, retries, error-shaped-as-200 guards
   identity.py     who played whom — the CPU-masking and name-normalizing rules
   ingest.py       CLI
+  report.py       builds the page: queries the views, embeds the data as JSON
   importers/
     game_history.py   the game list, both accounts
     game_log.py       box scores; promotes natural_key -> real game_uuid
   schema.sql      tables + all the stat views
-app/dashboard.py  Streamlit
+app/
+  report_template.html   THE UI — hand-written HTML/CSS/JS
+  dashboard.py           thin Streamlit shell: embeds the page, refresh button
 analysis/         rivalry_report.py (text summary), _verify.py (checks)
-data/show.db      the database (gitignored)
+data/show.db      the database (committed as a seed for the hosted app)
 ```
+
+**The UI is `app/report_template.html`, not Streamlit widgets.** The design is a
+full-bleed scoreboard over dense box-score tables, which Streamlit's DOM can't
+be styled into without a pile of brittle overrides — an earlier version tried
+and drifted into a visibly different product. Streamlit's job is hosting, and
+reaching the API for new games; the page does everything else, including the
+you-are switch, the tabs and the sortable leaderboards.
+
+Statistics live in SQL views (`v_h2h_record`, `v_batting_totals`,
+`v_pitching_totals`, `v_team_batting`, ...), so the page is a renderer and the
+numbers have exactly one definition.
 
 Statistics live in SQL views (`v_h2h_record`, `v_batting_totals`,
 `v_pitching_totals`, ...) rather than in dashboard code, so swapping Streamlit

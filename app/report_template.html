@@ -1,0 +1,692 @@
+<title>The Rivalry — MLB The Show 26</title>
+<style>
+  :root {
+    --ground: #0C1522;
+    --ground-2: #16223A;
+    --paper: #EDF0F4;
+    --surface: #FFFFFF;
+    --text: #0F1826;
+    --muted: #5E6C80;
+    --line: #D6DDE6;
+    --line-soft: #E8ECF2;
+    --home: #1B6CA8;
+    --away: #C8102E;
+    --amber: #E9A825;
+    --on-ground: #E9EEF5;
+    --on-ground-muted: #8496AC;
+
+    --display: "Haettenschweiler", "Arial Narrow Bold", "Arial Narrow",
+               "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+            "Liberation Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0A111C;
+      --surface: #131D2C;
+      --text: #E7EDF5;
+      --muted: #94A3B8;
+      --line: #26344B;
+      --line-soft: #1C2739;
+      --home: #4A9FDC;
+      --away: #F05A6E;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0A111C;
+    --surface: #131D2C;
+    --text: #E7EDF5;
+    --muted: #94A3B8;
+    --line: #26344B;
+    --line-soft: #1C2739;
+    --home: #4A9FDC;
+    --away: #F05A6E;
+  }
+  :root[data-theme="light"] {
+    --paper: #EDF0F4;
+    --surface: #FFFFFF;
+    --text: #0F1826;
+    --muted: #5E6C80;
+    --line: #D6DDE6;
+    --line-soft: #E8ECF2;
+    --home: #1B6CA8;
+    --away: #C8102E;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px 72px; }
+
+  /* ---------- scoreboard ---------- */
+  .board {
+    background: var(--ground);
+    background-image: radial-gradient(ellipse at 50% -40%, var(--ground-2), var(--ground) 62%);
+    color: var(--on-ground);
+    border-bottom: 3px solid var(--amber);
+  }
+  .board-inner {
+    max-width: 1180px; margin: 0 auto; padding: 26px 20px 20px;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .eyebrow {
+    font-family: var(--display);
+    text-transform: uppercase; letter-spacing: .18em;
+    font-size: 12px; color: var(--on-ground-muted);
+  }
+  .score-row {
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 18px;
+  }
+  .team { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .team.right { align-items: flex-end; text-align: right; }
+  .team-name {
+    font-family: var(--display);
+    text-transform: uppercase; letter-spacing: .04em;
+    font-size: clamp(19px, 3.4vw, 34px); font-weight: 700; line-height: 1.05;
+    overflow-wrap: anywhere;
+  }
+  .team-tag {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--on-ground-muted);
+  }
+  .swatch { width: 26px; height: 4px; border-radius: 2px; display: block; }
+  .wins {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: clamp(40px, 9vw, 76px); font-weight: 700; line-height: 1;
+    letter-spacing: -.02em;
+  }
+  .wins.lead { color: var(--amber); }
+  .vs {
+    font-family: var(--display); text-transform: uppercase;
+    font-size: 13px; letter-spacing: .2em; color: var(--on-ground-muted);
+  }
+  .verdict {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .06em;
+    font-size: clamp(14px, 2.2vw, 19px); text-align: center;
+    color: var(--on-ground);
+  }
+  .board-meta {
+    display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid rgba(255,255,255,.1); padding-top: 14px;
+  }
+  .stat-strip { display: flex; flex-wrap: wrap; gap: 22px; }
+  .strip-item { display: flex; flex-direction: column; }
+  .strip-k {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .12em;
+    font-size: 10px; color: var(--on-ground-muted);
+  }
+  .strip-v {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 17px; font-weight: 600;
+  }
+
+  /* ---------- who am I ---------- */
+  .whoami { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .whoami-label {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .12em;
+    font-size: 10px; color: var(--on-ground-muted);
+  }
+  .seg { display: flex; border: 1px solid rgba(255,255,255,.22); border-radius: 999px; overflow: hidden; }
+  .seg button {
+    font-family: var(--body); font-size: 13px; font-weight: 600;
+    padding: 6px 15px; border: 0; cursor: pointer;
+    background: transparent; color: var(--on-ground-muted);
+  }
+  .seg button[aria-pressed="true"] { background: var(--on-ground); color: var(--ground); }
+  .seg button:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
+
+  /* ---------- tabs ---------- */
+  nav.tabs {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--paper); border-bottom: 1px solid var(--line);
+    display: flex; gap: 2px; overflow-x: auto; padding: 0 20px;
+    max-width: 1180px; margin: 0 auto;
+  }
+  nav.tabs button {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .1em;
+    font-size: 13px; background: none; border: 0; cursor: pointer;
+    color: var(--muted); padding: 13px 15px 11px; white-space: nowrap;
+    border-bottom: 3px solid transparent;
+  }
+  nav.tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--amber); }
+  nav.tabs button:focus-visible { outline: 2px solid var(--home); outline-offset: -4px; }
+
+  section[hidden] { display: none; }
+  h2 {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .07em;
+    font-size: 21px; margin: 34px 0 12px; text-wrap: balance;
+  }
+  p.note { color: var(--muted); font-size: 13.5px; max-width: 68ch; margin: 8px 0; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 6px; overflow: hidden;
+  }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+
+  /* ---------- tables ---------- */
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  thead th {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .07em;
+    font-size: 11px; color: var(--muted); font-weight: 700;
+    text-align: right; padding: 9px 10px; white-space: nowrap;
+    border-bottom: 1.5px solid var(--line); background: var(--surface);
+    position: sticky; top: 0;
+  }
+  thead th:nth-child(-n+3) { text-align: left; }
+  thead th.sortable { cursor: pointer; user-select: none; }
+  thead th.sortable:hover { color: var(--text); }
+  thead th[aria-sort] { color: var(--text); }
+  thead th[aria-sort]::after { content: " ▾"; color: var(--amber); }
+  thead th[aria-sort="ascending"]::after { content: " ▴"; color: var(--amber); }
+  tbody td {
+    padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--line-soft);
+    font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12.5px;
+  }
+  tbody td:nth-child(-n+3) { text-align: left; }
+  tbody td.name { font-family: var(--body); font-size: 13.5px; font-weight: 500; }
+  tbody tr:hover td { background: color-mix(in srgb, var(--amber) 8%, transparent); }
+  td.owner { font-family: var(--body); font-size: 12px; white-space: nowrap; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  td.hi { color: var(--amber); font-weight: 700; }
+
+  /* ---------- controls ---------- */
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end;
+    margin: 14px 0 10px;
+  }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .1em;
+    font-size: 10px; color: var(--muted);
+  }
+  select, input[type="text"], input[type="number"] {
+    font-family: var(--body); font-size: 14px; padding: 7px 10px;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--line); border-radius: 5px; min-width: 150px;
+  }
+  select:focus-visible, input:focus-visible { outline: 2px solid var(--home); outline-offset: 1px; }
+
+  /* ---------- comparison ---------- */
+  .cmp { width: 100%; border-collapse: collapse; }
+  .cmp td { padding: 8px 12px; border-bottom: 1px solid var(--line-soft); }
+  .cmp td.k {
+    font-family: var(--body); color: var(--muted); font-size: 13px;
+    text-align: center; width: 42%;
+  }
+  .cmp td.v {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 16px; width: 29%;
+  }
+  .cmp td.v.left { text-align: left; }
+  .cmp td.v.right { text-align: right; }
+  .cmp td.v.win { font-weight: 700; }
+  .cmp td.v.win.left { color: var(--home); }
+  .cmp td.v.win.right { color: var(--away); }
+  .card-head {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .1em;
+    font-size: 12px; color: var(--muted);
+    padding: 11px 12px; border-bottom: 1px solid var(--line);
+  }
+
+  /* ---------- feats ---------- */
+  .feats { display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 12px; }
+  .feat { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 13px 14px; }
+  .feat .k {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .1em;
+    font-size: 10px; color: var(--muted);
+  }
+  .feat .v {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 26px; font-weight: 700; line-height: 1.2;
+  }
+  .feat .s { font-size: 12px; color: var(--muted); }
+
+  .bars { display: flex; flex-direction: column; gap: 5px; padding: 12px; }
+  .bar-row { display: grid; grid-template-columns: 150px 1fr 46px; align-items: center; gap: 10px; }
+  .bar-name { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { background: var(--line-soft); border-radius: 3px; height: 15px; }
+  .bar-fill { height: 100%; border-radius: 3px; }
+  .bar-val {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 12.5px; text-align: right;
+  }
+
+  .pill {
+    display: inline-block; font-family: var(--body); font-size: 11px;
+    padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line);
+    color: var(--muted);
+  }
+  .w { color: var(--home); font-weight: 700; }
+  .l { color: var(--away); font-weight: 700; }
+  footer {
+    color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line);
+    margin-top: 40px; padding-top: 16px;
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="board">
+  <div class="board-inner">
+    <div class="eyebrow">MLB The Show 26 · Diamond Dynasty · head to head</div>
+    <div class="score-row">
+      <div class="team">
+        <span class="swatch" id="sw-a"></span>
+        <span class="team-name" id="name-a"></span>
+        <span class="team-tag" id="tag-a"></span>
+      </div>
+      <div style="text-align:center">
+        <div style="display:flex;align-items:center;gap:14px;justify-content:center">
+          <span class="wins" id="wins-a"></span>
+          <span class="vs">–</span>
+          <span class="wins" id="wins-b"></span>
+        </div>
+      </div>
+      <div class="team right">
+        <span class="swatch" id="sw-b"></span>
+        <span class="team-name" id="name-b"></span>
+        <span class="team-tag" id="tag-b"></span>
+      </div>
+    </div>
+    <div class="verdict" id="verdict"></div>
+    <div class="board-meta">
+      <div class="stat-strip" id="strip"></div>
+      <div class="whoami">
+        <span class="whoami-label">You are</span>
+        <div class="seg" id="whoami" role="group" aria-label="Choose which player you are"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="tabs" id="tabs" role="tablist"></nav>
+
+<div class="wrap">
+  <section id="tab-overview" role="tabpanel">
+    <h2>Head to head</h2>
+    <p class="note" id="cmp-note"></p>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-head">Batting — both rosters, all head-to-head games</div>
+        <table class="cmp"><tbody id="cmp-bat"></tbody></table>
+      </div>
+      <div class="card">
+        <div class="card-head">Pitching — both staffs, all head-to-head games</div>
+        <table class="cmp"><tbody id="cmp-pit"></tbody></table>
+      </div>
+    </div>
+
+    <h2>Feats</h2>
+    <div class="feats" id="feats"></div>
+
+    <h2>Form</h2>
+    <p class="note">Every game, oldest first. Each block is one result from your side.</p>
+    <div class="card" style="padding:14px"><div id="form"></div></div>
+  </section>
+
+  <section id="tab-hitters" role="tabpanel" hidden>
+    <h2>Hitters</h2>
+    <p class="note">
+      Career totals across head-to-head games. Sorting applies to every qualifying
+      player, not just the rows on screen — click any column header to re-rank.
+      The API reports batters by surname only and truncates long names, so two
+      cards of the same player merge and two players sharing a surname can't be
+      told apart.
+    </p>
+    <div class="controls" id="ctl-bat"></div>
+    <div class="card scroll"><table id="tbl-bat"></table></div>
+    <h2>Top 12</h2>
+    <div class="card"><div class="bars" id="bars-bat"></div></div>
+  </section>
+
+  <section id="tab-pitchers" role="tabpanel" hidden>
+    <h2>Pitchers</h2>
+    <p class="note">
+      IP is real baseball notation — 390.2 means 390⅔, not 390.7 — and ERA, K/9,
+      BB/9 and WHIP are all computed from outs recorded. RA/9 counts unearned runs
+      that ERA hides. K/BB is blank for a pitcher who has never walked anyone.
+    </p>
+    <div class="controls" id="ctl-pit"></div>
+    <div class="card scroll"><table id="tbl-pit"></table></div>
+    <h2>Top 12</h2>
+    <div class="card"><div class="bars" id="bars-pit"></div></div>
+  </section>
+
+  <section id="tab-games" role="tabpanel" hidden>
+    <h2>Every game</h2>
+    <p class="note" id="games-note"></p>
+    <div class="card scroll"><table id="tbl-games"></table></div>
+  </section>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+const [P1, P2] = DATA.players;
+const COLOR = { [P1]: "var(--home)", [P2]: "var(--away)" };
+let viewer = P1;
+let tab = "overview";
+
+const $ = (id) => document.getElementById(id);
+const num = (v, d = 0) => (v === null || v === undefined || Number.isNaN(v)) ? "" : Number(v).toFixed(d);
+// Baseball drops the leading zero on AVG/OBP/SLG/OPS but keeps it on ERA/WHIP.
+const rate = (v) => (v === null || v === undefined) ? "" : Number(v).toFixed(3).replace(/^0\./, ".");
+
+/* ---------------- perspective ---------------- */
+// Every game is stored home/away as the API reports it. "You" is whichever side
+// the current viewer sat on, so switching viewer flips the whole page.
+function fromView(g, who) {
+  const mine = g.home.toLowerCase() === who.toLowerCase();
+  const my = mine ? g.hr : g.ar, their = mine ? g.ar : g.hr;
+  return {
+    ...g,
+    my, their,
+    mySquad: mine ? g.hs : g.asq,
+    theirSquad: mine ? g.asq : g.hs,
+    res: g.win === null ? null : ((g.win === "home") === mine ? "W" : "L"),
+  };
+}
+const opponentOf = (who) => (who === P1 ? P2 : P1);
+
+function record(who) {
+  const gs = DATA.games.map((g) => fromView(g, who));
+  const w = gs.filter((g) => g.res === "W").length;
+  const l = gs.filter((g) => g.res === "L").length;
+  const rf = gs.reduce((a, g) => a + g.my, 0), ra = gs.reduce((a, g) => a + g.their, 0);
+  return { gs, w, l, rf, ra };
+}
+
+function streaks(res) {
+  let cur = 0, kind = "", bw = 0, bl = 0;
+  for (const r of res) {
+    cur = r === kind ? cur + 1 : 1; kind = r;
+    if (kind === "W") bw = Math.max(bw, cur); else bl = Math.max(bl, cur);
+  }
+  return { cur, kind, bw, bl };
+}
+
+/* ---------------- scoreboard ---------------- */
+function renderBoard() {
+  const you = viewer, them = opponentOf(viewer);
+  const r = record(you);
+  $("name-a").textContent = you;
+  $("name-b").textContent = them;
+  $("tag-a").textContent = "you";
+  $("tag-b").textContent = "opponent";
+  $("sw-a").style.background = COLOR[you];
+  $("sw-b").style.background = COLOR[them];
+  $("wins-a").textContent = r.w;
+  $("wins-b").textContent = r.l;
+  $("wins-a").className = "wins" + (r.w >= r.l ? " lead" : "");
+  $("wins-b").className = "wins" + (r.l > r.w ? " lead" : "");
+
+  // Phrased from the viewer's side, and always with their own record first, so
+  // the sentence and the scoreboard above it never disagree about which number
+  // belongs to whom.
+  const pct = rate(r.w / Math.max(r.w + r.l, 1));
+  const verb = r.w > r.l ? "lead" : r.w < r.l ? "trail" : "are level with";
+  $("verdict").textContent =
+    r.w === r.l ? `You are level with ${them} at ${r.w}–${r.l}`
+                : `You ${verb} ${them} ${r.w}–${r.l} (${pct})`;
+
+  const res = r.gs.map((g) => g.res).filter(Boolean);
+  const st = streaks(res);
+  const last10 = res.slice(-10);
+  const strip = [
+    ["Games", r.gs.length],
+    ["Run diff", (r.rf - r.ra > 0 ? "+" : "") + (r.rf - r.ra)],
+    ["Runs", `${r.rf}–${r.ra}`],
+    ["Streak", `${st.cur}${st.kind}`],
+    ["Longest", `${st.bw}W · ${st.bl}L`],
+    ["Last 10", `${last10.filter((x) => x === "W").length}–${last10.filter((x) => x === "L").length}`],
+  ];
+  $("strip").innerHTML = strip
+    .map(([k, v]) => `<div class="strip-item"><span class="strip-k">${k}</span><span class="strip-v">${v}</span></div>`)
+    .join("");
+}
+
+function renderWhoami() {
+  $("whoami").innerHTML = DATA.players
+    .map((p) => `<button type="button" data-p="${p}" aria-pressed="${p === viewer}">${p}</button>`)
+    .join("");
+  $("whoami").querySelectorAll("button").forEach((b) =>
+    b.addEventListener("click", () => { viewer = b.dataset.p; renderAll(); }));
+}
+
+/* ---------------- overview ---------------- */
+const CMP_BAT = [
+  ["Batting average", "avg", false, rate], ["On-base %", "obp", false, rate],
+  ["Slugging %", "slg", false, rate], ["OPS", "ops", false, rate],
+  ["Home runs", "hr", false, (v) => num(v)], ["Runs", "runs", false, (v) => num(v)],
+  ["Hits", "h", false, (v) => num(v)], ["Stolen bases", "sb", false, (v) => num(v)],
+  ["Strikeouts", "so", true, (v) => num(v)],
+];
+const CMP_PIT = [
+  ["ERA", "era", true, (v) => num(v, 2)], ["WHIP", "whip", true, (v) => num(v, 3)],
+  ["Runs allowed / 9", "ra9", true, (v) => num(v, 2)],
+  ["K / 9", "k_per_9", false, (v) => num(v, 2)],
+  ["BB / 9", "bb_per_9", true, (v) => num(v, 2)],
+  ["Strikeouts", "so", false, (v) => num(v)],
+  ["Innings", "innings", false, (v) => num(v, 1)],
+];
+
+function renderCompare() {
+  const you = viewer, them = opponentOf(viewer);
+  const build = (rows, key) => rows.map(([label, f, lower, fmt]) => {
+    const a = DATA.team[you]?.[key]?.[f], b = DATA.team[them]?.[key]?.[f];
+    if (a === undefined || b === undefined) return "";
+    const aWins = lower ? a < b : a > b, bWins = lower ? b < a : b > a;
+    return `<tr>
+      <td class="v left ${aWins ? "win" : ""}">${fmt(a)}</td>
+      <td class="k">${label}</td>
+      <td class="v right ${bWins ? "win" : ""}">${fmt(b)}</td>
+    </tr>`;
+  }).join("");
+  $("cmp-bat").innerHTML = build(CMP_BAT, "bat");
+  $("cmp-pit").innerHTML = build(CMP_PIT, "pit");
+  $("cmp-note").textContent =
+    `${you} on the left, ${them} on the right. Bold is the better mark. `
+    + `Totals are every card either of you played across all ${DATA.games.length} games.`;
+}
+
+function renderFeats() {
+  const { gs } = record(viewer);
+  const played = gs.filter((g) => g.res);
+  const margin = (g) => g.my - g.their;
+  const best = played.reduce((a, g) => (margin(g) > margin(a) ? g : a), played[0]);
+  const worst = played.reduce((a, g) => (margin(g) < margin(a) ? g : a), played[0]);
+  const high = played.reduce((a, g) => (g.my + g.their > a.my + a.their ? g : a), played[0]);
+  // A 0-0 game (awarded on a quit) is nobody's shutout, and counting it would
+  // put the same game in both columns.
+  const real = played.filter((g) => g.my + g.their > 0);
+  const one = played.filter((g) => Math.abs(margin(g)) === 1);
+  const cards = [
+    ["Biggest win", `${best.my}–${best.their}`, best.d.slice(0, 10)],
+    ["Worst loss", `${worst.my}–${worst.their}`, worst.d.slice(0, 10)],
+    ["Highest scoring", `${high.my}–${high.their}`, high.d.slice(0, 10)],
+    ["Shutouts thrown", real.filter((g) => g.their === 0).length, "opponent held scoreless"],
+    ["Shut out", real.filter((g) => g.my === 0).length, "you held scoreless"],
+    ["One-run games", one.length, `${one.filter((g) => g.res === "W").length} won`],
+    ["Extra innings", played.filter((g) => g.inn > 9).length, "went past the 9th"],
+    ["Ended early", played.filter((g) => g.early).length, "quit or disconnect"],
+  ];
+  $("feats").innerHTML = cards.map(([k, v, s]) =>
+    `<div class="feat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+}
+
+function renderForm() {
+  const { gs } = record(viewer);
+  $("form").innerHTML = gs.filter((g) => g.res).map((g) =>
+    `<span title="${g.d} · ${g.my}–${g.their}" style="display:inline-block;width:11px;height:19px;margin:1px;border-radius:2px;background:${
+      g.res === "W" ? COLOR[viewer] : COLOR[opponentOf(viewer)]};opacity:${g.early ? .45 : 1}"></span>`).join("");
+}
+
+/* ---------------- leaderboards ---------------- */
+const BAT_COLS = [
+  ["p", "Player", "name"], ["u", "Owner", "owner"], ["g", "G"], ["pa", "PA"], ["ab", "AB"],
+  ["h", "H"], ["avg", "AVG", "", rate], ["obp", "OBP", "", rate], ["slg", "SLG", "", rate],
+  ["ops", "OPS", "", rate], ["iso", "ISO", "", rate], ["hr", "HR"], ["rbi", "RBI"], ["r", "R"],
+  ["d2", "2B"], ["d3", "3B"], ["bb", "BB"], ["so", "SO"],
+  ["kp", "K%", "", (v) => num(v, 1)], ["bbp", "BB%", "", (v) => num(v, 1)],
+  ["sb", "SB"], ["cs", "CS"], ["sbp", "SB%", "", rate], ["babip", "BABIP", "", rate],
+];
+const PIT_COLS = [
+  ["p", "Player", "name"], ["u", "Owner", "owner"], ["g", "G"], ["gs", "GS"],
+  ["ip", "IP", "", (v) => num(v, 1)], ["so", "SO"],
+  ["k9", "K/9", "", (v) => num(v, 2)], ["bb9", "BB/9", "", (v) => num(v, 2)],
+  ["kbb", "K/BB", "", (v) => num(v, 2)], ["era", "ERA", "", (v) => num(v, 2)],
+  ["ra9", "RA/9", "", (v) => num(v, 2)], ["whip", "WHIP", "", (v) => num(v, 3)],
+  ["h", "H"], ["bb", "BB"], ["er", "ER"], ["w", "W"], ["l", "L"], ["sv", "SV"], ["hld", "HLD"],
+];
+// Lower is better for these, so a first click should sort ascending.
+const LOWER = new Set(["era", "whip", "ra9", "bb9", "kp"]);
+
+const state = {
+  bat: { sort: "hr", asc: false, min: 50, owner: "Both", find: "" },
+  pit: { sort: "so", asc: false, min: 15, owner: "Both", find: "" },
+};
+
+function controls(kind) {
+  const s = state[kind];
+  const qual = kind === "bat" ? "AB" : "IP";
+  const el = $(kind === "bat" ? "ctl-bat" : "ctl-pit");
+  el.innerHTML = `
+    <div class="field"><label>Card owner</label>
+      <select data-k="owner">${["Both", viewer, opponentOf(viewer)]
+        .map((o) => `<option ${o === s.owner ? "selected" : ""}>${o}</option>`).join("")}</select></div>
+    <div class="field"><label>Minimum ${qual}</label>
+      <input type="number" data-k="min" value="${s.min}" min="0" step="5"></div>
+    <div class="field"><label>Find a player</label>
+      <input type="text" data-k="find" value="${s.find}" placeholder="surname…"></div>`;
+  el.querySelectorAll("[data-k]").forEach((inp) => {
+    inp.addEventListener("input", () => {
+      const k = inp.dataset.k;
+      s[k] = k === "min" ? Number(inp.value || 0) : inp.value;
+      renderBoardTable(kind);
+    });
+  });
+}
+
+function rowsFor(kind) {
+  const s = state[kind];
+  const src = kind === "bat" ? DATA.batting : DATA.pitching;
+  const qual = kind === "bat" ? "ab" : "ip";
+  let rows = src.filter((r) => (r[qual] ?? 0) >= s.min);
+  if (s.owner !== "Both") rows = rows.filter((r) => r.u === s.owner);
+  if (s.find) rows = rows.filter((r) => (r.p || "").toLowerCase().includes(s.find.toLowerCase()));
+  const f = s.sort;
+  return rows.slice().sort((a, b) => {
+    const av = a[f], bv = b[f];
+    if (av === null || av === undefined) return 1;
+    if (bv === null || bv === undefined) return -1;
+    if (av === bv) return (b.g ?? 0) - (a.g ?? 0);
+    return s.asc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+  });
+}
+
+function renderBoardTable(kind) {
+  const cols = kind === "bat" ? BAT_COLS : PIT_COLS;
+  const s = state[kind];
+  const rows = rowsFor(kind);
+  const head = `<thead><tr><th>#</th>${cols.map(([f, label]) =>
+    `<th class="sortable" data-f="${f}" ${f === s.sort ? `aria-sort="${s.asc ? "ascending" : "descending"}"` : ""}>${label}</th>`
+  ).join("")}</tr></thead>`;
+  const body = `<tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td>${cols.map(([f, , cls, fmt]) => {
+    if (cls === "owner") {
+      return `<td class="owner"><span class="dot" style="background:${COLOR[r.u]}"></span>${r.u}</td>`;
+    }
+    const v = fmt ? fmt(r[f]) : (r[f] ?? "");
+    return `<td class="${cls || ""}${f === s.sort ? " hi" : ""}">${v}</td>`;
+  }).join("")}</tr>`).join("")}</tbody>`;
+  const tbl = $(kind === "bat" ? "tbl-bat" : "tbl-pit");
+  tbl.innerHTML = head + body;
+  tbl.querySelectorAll("th.sortable").forEach((th) => th.addEventListener("click", () => {
+    const f = th.dataset.f;
+    if (s.sort === f) s.asc = !s.asc;
+    else { s.sort = f; s.asc = LOWER.has(f); }
+    renderBoardTable(kind);
+  }));
+  renderBars(kind, rows.slice(0, 12));
+}
+
+function renderBars(kind, top) {
+  const s = state[kind];
+  const cols = kind === "bat" ? BAT_COLS : PIT_COLS;
+  const col = cols.find((c) => c[0] === s.sort);
+  const fmt = col?.[3] || ((v) => num(v));
+  const vals = top.map((r) => Number(r[s.sort]) || 0);
+  const max = Math.max(...vals, 1);
+  $(kind === "bat" ? "bars-bat" : "bars-pit").innerHTML = top.map((r) => {
+    const v = Number(r[s.sort]) || 0;
+    // Label carries the owner: both players field cards with the same surname
+    // (two Fingers, two Durans), so a bare name would conflate them.
+    return `<div class="bar-row">
+      <span class="bar-name" title="${r.p} (${r.u})"><span class="dot" style="background:${COLOR[r.u]}"></span>${r.p}</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${Math.max(2, (v / max) * 100)}%;background:${COLOR[r.u]}"></span></span>
+      <span class="bar-val">${fmt(r[s.sort])}</span>
+    </div>`;
+  }).join("");
+}
+
+/* ---------------- games ---------------- */
+function renderGames() {
+  const { gs } = record(viewer);
+  const rows = gs.slice().reverse();
+  $("games-note").textContent =
+    `${rows.length} head-to-head games, newest first, from ${viewer}'s side.`
+    + (DATA.coop.length ? ` Plus ${DATA.coop.length} co-op games where you two were teammates — those aren't in the record.` : "");
+  $("tbl-games").innerHTML =
+    `<thead><tr><th>Date</th><th>You</th><th>Them</th><th>Result</th><th>Inn</th>
+     <th>Your squad</th><th>Their squad</th><th>Note</th></tr></thead><tbody>` +
+    rows.map((g) => `<tr>
+      <td class="name">${g.d.slice(0, 10)}</td>
+      <td>${g.my}</td><td>${g.their}</td>
+      <td class="${g.res === "W" ? "w" : "l"}">${g.res || ""}</td>
+      <td>${g.inn ?? ""}</td>
+      <td class="name">${g.mySquad || ""}</td><td class="name">${g.theirSquad || ""}</td>
+      <td class="name">${g.early ? '<span class="pill">ended early</span>' : ""}</td>
+    </tr>`).join("") + "</tbody>";
+}
+
+/* ---------------- tabs ---------------- */
+const TABS = [["overview", "Overview"], ["hitters", "Hitters"], ["pitchers", "Pitchers"], ["games", "Games"]];
+function renderTabs() {
+  $("tabs").innerHTML = TABS.map(([id, label]) =>
+    `<button role="tab" data-t="${id}" aria-selected="${id === tab}">${label}</button>`).join("");
+  $("tabs").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    tab = b.dataset.t; renderTabs(); showTab();
+  }));
+}
+function showTab() {
+  TABS.forEach(([id]) => { $("tab-" + id).hidden = id !== tab; });
+}
+
+function renderAll() {
+  renderBoard(); renderWhoami(); renderCompare(); renderFeats(); renderForm();
+  controls("bat"); controls("pit");
+  renderBoardTable("bat"); renderBoardTable("pit");
+  renderGames(); renderTabs(); showTab();
+  $("foot").innerHTML =
+    `Built from the public MLB The Show API — game history and box scores for every `
+    + `head-to-head game between ${P1} and ${P2}. Data through ${DATA.through}; page generated ${DATA.generated}. `
+    + `The API reports batters by surname only, caps line scores at nine innings, and has no field `
+    + `distinguishing an invited match from a random one, so "head to head" means opponent identity.`;
+}
+
+renderAll();
+</script>
