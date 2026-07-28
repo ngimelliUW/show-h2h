@@ -14,6 +14,7 @@ do for itself: reach out to the Show API for new games.
 """
 from __future__ import annotations
 
+import hashlib
 import shutil
 import sys
 import tempfile
@@ -32,7 +33,6 @@ st.set_page_config(page_title="The Rivalry — MLB The Show 26", page_icon="⚾"
                    layout="wide", initial_sidebar_state="collapsed")
 
 SEED = Path(__file__).resolve().parents[1] / "data" / "seed.db"
-RUNTIME = Path(tempfile.gettempdir()) / "show-h2h" / "show.db"
 
 
 def use_writable_copy() -> None:
@@ -40,23 +40,27 @@ def use_writable_copy() -> None:
 
     The app writes to the database — schema migrations on boot, and the refresh
     button. Streamlit Cloud redeploys by pulling, and a pull will not clobber a
-    locally-modified file, so writing to the committed copy left the deploy
-    permanently pinned to whatever database existed the first time the app ran.
-    That shipped: new code reading months-old tables, with the new pages simply
-    empty.
+    locally-modified file, so writing to the committed copy pinned the deploy to
+    whatever database existed the first time the app ran: new code reading old
+    tables, with the new pages silently empty.
 
-    Re-seeded whenever the committed file is newer, so a push carries data
-    forward. Writes stay ephemeral, which is already how the refresh button is
-    documented.
+    The runtime directory is named after a fingerprint of the seed, so a new
+    seed always lands somewhere new. Comparing timestamps instead looked
+    equivalent and was not — the app rewrites its copy on every boot, so which
+    file is "newer" depends on deploy ordering, and a stale copy kept winning.
     """
-    RUNTIME.parent.mkdir(parents=True, exist_ok=True)
-    if SEED.exists() and (not RUNTIME.exists()
-                          or RUNTIME.stat().st_mtime < SEED.stat().st_mtime):
-        for sidecar in ("-wal", "-shm"):  # stale WAL against a fresh seed corrupts
-            Path(str(RUNTIME) + sidecar).unlink(missing_ok=True)
-        shutil.copy2(SEED, RUNTIME)
-    config.DB_PATH = RUNTIME
-    config.DATA_DIR = RUNTIME.parent
+    fingerprint = "empty"
+    if SEED.exists():
+        stat = SEED.stat()
+        fingerprint = hashlib.sha256(
+            f"{stat.st_size}-{int(stat.st_mtime)}".encode()).hexdigest()[:16]
+
+    runtime = Path(tempfile.gettempdir()) / "show-h2h" / fingerprint / "show.db"
+    runtime.parent.mkdir(parents=True, exist_ok=True)
+    if SEED.exists() and not runtime.exists():
+        shutil.copy2(SEED, runtime)
+    config.DB_PATH = runtime
+    config.DATA_DIR = runtime.parent
 
 
 use_writable_copy()
