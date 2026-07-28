@@ -1,0 +1,12 @@
+# Matches the scoreboard identity used by the static page (app/report_template.html):
+# cool blue-biased neutrals, field blue as the primary, scoreboard amber for
+# accents. Keeping the two front-ends on one palette.
+[theme]
+base = "light"
+primaryColor = "#1B6CA8"
+backgroundColor = "#EDF0F4"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#0F1826"
+
+[server]
+headless = true

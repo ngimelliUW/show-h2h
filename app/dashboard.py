@@ -16,17 +16,28 @@ import streamlit as st
 # Streamlit Community Cloud installs requirements.txt but not this project, so
 # make the src/ layout importable without an editable install. Harmless locally.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import theme  # noqa: E402
 from show_h2h import config, db  # noqa: E402
 
-st.set_page_config(page_title="Show H2H", page_icon="⚾", layout="wide")
+st.set_page_config(page_title="Show H2H", page_icon="⚾", layout="wide",
+                   initial_sidebar_state="collapsed")
 db.init_db()
+st.markdown(theme.CSS, unsafe_allow_html=True)
 
 # Whose side the page is written from. The views are all built from
 # MY_USERNAME's perspective, so picking the other player flips the games frame
 # (see flip_perspective) rather than rebuilding the SQL.
-VIEWER = st.sidebar.radio("Viewing as", [config.MY_USERNAME, config.FRIEND_USERNAME],
-                          help="Switches whose side every number is written from.")
+#
+# This lives in the main body, not the sidebar: Streamlit collapses the sidebar
+# behind a hamburger on phones, and "which of us am I" is the first thing either
+# player needs to set.
+VIEWER = st.segmented_control(
+    "Which one are you?", [config.MY_USERNAME, config.FRIEND_USERNAME],
+    default=config.MY_USERNAME, key="viewer",
+    help="Switches whose side every number on the page is written from."
+    ) or config.MY_USERNAME
 ME = VIEWER
 THEM = config.FRIEND_USERNAME if VIEWER == config.MY_USERNAME else config.MY_USERNAME
 FLIPPED = VIEWER != config.MY_USERNAME
@@ -301,78 +312,71 @@ def leaderboard_controls(df, sorts: dict, default: str, *, qual_col: str, qual_n
     return view, sort_by, label
 
 
-PAGES = ["Rivalry", "Feats", "Hitters", "Pitchers", "Games"]
-page = st.sidebar.radio("Page", PAGES)
-st.sidebar.caption(f"**{ME}** vs **{THEM}**")
+# ---- the scoreboard, on every page ----
+_all = flip_perspective(q("SELECT * FROM v_h2h_games ORDER BY played_at"))
+if _all.empty:
+    st.title("⚾ The Rivalry")
+    empty_state("No head-to-head games yet.", "uv run python -m show_h2h.ingest history")
+    st.stop()
 
-_latest = q("SELECT MAX(played_at) d, COUNT(*) n FROM games WHERE is_h2h = 1")
-if not _latest.empty and _latest.iloc[0]["d"]:
-    st.sidebar.caption(f"Data through {str(_latest.iloc[0]['d'])[:10]} · "
-                       f"{int(_latest.iloc[0]['n'])} head-to-head games")
+_played = _all.dropna(subset=["result"])
+_res = _played["result"].tolist()
+_w = int((_played["result"] == "W").sum())
+_l = int((_played["result"] == "L").sum())
+_cur, _kind, _bw, _bl = streaks(_res)
+_last10 = _res[-10:]
+_rf, _ra = int(_all["my_runs"].sum()), int(_all["their_runs"].sum())
+
+st.markdown(
+    theme.scoreboard(
+        ME, THEM, _w, _l,
+        [("Games", len(_all)),
+         ("Run diff", f"{_rf - _ra:+d}"),
+         ("Runs", f"{_rf}–{_ra}"),
+         ("Streak", f"{_cur}{_kind}"),
+         ("Longest", f"{_bw}W · {_bl}L"),
+         ("Last 10", f"{_last10.count('W')}–{_last10.count('L')}")],
+        PLAYER_COLORS[ME], PLAYER_COLORS[THEM]),
+    unsafe_allow_html=True)
+
+PAGES = ["Rivalry", "Feats", "Hitters", "Pitchers", "Games"]
+page = st.segmented_control("Page", PAGES, default="Rivalry", key="page",
+                            label_visibility="collapsed") or "Rivalry"
 
 # Pulling straight from the API keeps the hosted copy genuinely live rather than
 # a snapshot — the crawl is incremental, so it stops as soon as it reaches games
 # already stored and normally costs a couple of requests.
-if st.sidebar.button("Pull new games", width="stretch"):
+_bar1, _bar2 = st.columns([1, 3])
+if _bar1.button("↻ Pull new games", width="stretch"):
     from show_h2h.importers import game_history, game_log
 
     with st.spinner("Checking the Show API for new games…"):
         try:
-            counts = game_history.run_import(incremental=True)
+            game_history.run_import(incremental=True)
             res = game_log.run_import(scope="both-played")
             q.clear()
-            st.sidebar.success(f"Up to date — {res['imported']} new box score(s).")
+            st.toast(f"Up to date — {res['imported']} new box score(s).")
         except Exception as e:
-            st.sidebar.error(f"Couldn't reach the API: {e}")
+            st.error(f"Couldn't reach the API: {e}")
     st.rerun()
 
-st.sidebar.caption("Or from a terminal:\n\n`uv run python -m show_h2h.ingest refresh`")
+_latest = q("SELECT MAX(played_at) d FROM games WHERE is_h2h = 1")
+if not _latest.empty and _latest.iloc[0]["d"]:
+    _bar2.caption(f"Data through {str(_latest.iloc[0]['d'])[:10]} · "
+                  f"{len(_all)} head-to-head games")
 
 
 # --------------------------------------------------------------------------- #
 # Rivalry
 # --------------------------------------------------------------------------- #
 if page == "Rivalry":
-    games = flip_perspective(q("SELECT * FROM v_h2h_games ORDER BY played_at"))
-    if games.empty:
-        st.title("⚾ The Rivalry")
-        empty_state("No head-to-head games yet.",
-                    "uv run python -m show_h2h.ingest history")
-        st.stop()
-
-    # Derived from the (possibly flipped) frame rather than v_h2h_record, so the
-    # whole page follows the "Viewing as" choice.
-    played = games.dropna(subset=["result"])
-    r = {
-        "games": len(games),
-        "wins": int((played["result"] == "W").sum()),
-        "losses": int((played["result"] == "L").sum()),
-        "runs_for": int(games["my_runs"].sum()),
-        "runs_against": int(games["their_runs"].sum()),
-    }
-    r["win_pct"] = r["wins"] / max(r["wins"] + r["losses"], 1)
-    r["avg_runs_for"] = round(games["my_runs"].mean(), 2)
-    r["avg_runs_against"] = round(games["their_runs"].mean(), 2)
-
-    cur, cur_kind, best_w, best_l = streaks(played["result"].tolist())
-    leader, trailer = (ME, THEM) if r["wins"] >= r["losses"] else (THEM, ME)
-    lead_w, lead_l = ((r["wins"], r["losses"]) if leader == ME
-                      else (r["losses"], r["wins"]))
-
-    st.title("⚾ The Rivalry")
-    st.markdown(f"### {leader} leads the series **{lead_w}–{lead_l}** "
-                f"({rate(lead_w / max(lead_w + lead_l, 1))}) over {trailer}")
-
-    c1, c2, c3, c4 = st.columns(4, gap="medium")
-    c1.metric("Record", f"{int(r['wins'])}–{int(r['losses'])}")
-    c1.caption(f"{rate(r['win_pct'])} · {ME}'s side")
-    c2.metric("Games", int(r["games"]))
-    last10 = games.dropna(subset=["result"]).tail(10)["result"]
-    c2.caption(f"last 10: {int((last10 == 'W').sum())}–{int((last10 == 'L').sum())}")
-    c3.metric("Run diff", f"{int(r['runs_for'] - r['runs_against']):+d}")
-    c3.caption(f"{int(r['runs_for'])} scored · {int(r['runs_against'])} allowed")
-    c4.metric("Streak", f"{cur}{cur_kind}")
-    c4.caption(f"longest {best_w}W · {best_l}L")
+    # The scoreboard above already carries the headline numbers, so this page
+    # goes straight to the comparison rather than restating the record.
+    games = _all
+    r = {"games": len(games), "wins": _w, "losses": _l,
+         "runs_for": _rf, "runs_against": _ra,
+         "avg_runs_for": round(games["my_runs"].mean(), 2),
+         "avg_runs_against": round(games["their_runs"].mean(), 2)}
 
     early = int(games["ended_early"].sum()) if "ended_early" in games else 0
     if early:

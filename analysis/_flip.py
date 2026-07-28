@@ -1,21 +1,53 @@
-"""Check the perspective flip is a true mirror, not just non-crashing."""
-from streamlit.testing.v1 import AppTest
-from show_h2h import config
+"""Check the perspective switch is a true mirror, not just non-crashing.
 
-seen = {}
-for viewer in (config.MY_USERNAME, config.FRIEND_USERNAME):
+Run:  uv run python analysis/_flip.py
+"""
+from __future__ import annotations
+
+import re
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from streamlit.testing.v1 import AppTest  # noqa: E402
+
+from show_h2h import config  # noqa: E402
+
+
+def scoreboard_html(viewer: str) -> str:
     at = AppTest.from_file("app/dashboard.py", default_timeout=180)
+    at.session_state["viewer"] = viewer
+    at.session_state["page"] = "Rivalry"
     at.run()
-    at.radio[0].set_value(viewer).run()
-    at.radio[1].set_value("Rivalry").run()
-    m = {x.label: x.value for x in at.metric}
-    seen[viewer] = m
-    print(f"{viewer}: {m}")
+    if at.exception:
+        raise SystemExit(f"app raised for {viewer}: {at.exception[0].message}")
+    # The record lives in the injected scoreboard block, not in st.metric.
+    return next(str(m.value) for m in at.markdown if 'class="sb"' in str(m.value))
 
-a, b = seen[config.MY_USERNAME], seen[config.FRIEND_USERNAME]
-aw, al = a["Record"].split("–")
-bw, bl = b["Record"].split("–")
-print("\nrecord is mirrored:", (aw, al) == (bl, bw), f"({a['Record']} vs {b['Record']})")
-print("run diff is negated:", a["Run diff"].lstrip("+") == b["Run diff"].lstrip("-"),
-      f"({a['Run diff']} vs {b['Run diff']})")
-print("games identical:", a["Games"] == b["Games"])
+
+def parse(html: str) -> dict:
+    wins = re.findall(r'class="sb-wins[^"]*">(\d+)<', html)
+    strip = dict(re.findall(
+        r'class="sb-k">([^<]+)</span><span class="sb-v">([^<]+)<', html))
+    return {"wins": int(wins[0]), "losses": int(wins[1]), **strip}
+
+
+a = parse(scoreboard_html(config.MY_USERNAME))
+b = parse(scoreboard_html(config.FRIEND_USERNAME))
+print(f"{config.MY_USERNAME:15s} {a['wins']}–{a['losses']}  run diff {a['Run diff']}  "
+      f"streak {a['Streak']}")
+print(f"{config.FRIEND_USERNAME:15s} {b['wins']}–{b['losses']}  run diff {b['Run diff']}  "
+      f"streak {b['Streak']}")
+
+checks = {
+    "record is mirrored": (a["wins"], a["losses"]) == (b["losses"], b["wins"]),
+    "run diff is negated": int(a["Run diff"]) == -int(b["Run diff"]),
+    "runs are swapped": a["Runs"] == "–".join(reversed(b["Runs"].split("–"))),
+    "games identical": a["Games"] == b["Games"],
+    "streak flips W/L": a["Streak"][-1] != b["Streak"][-1],
+}
+print()
+for name, passed in checks.items():
+    print(f"{'PASS' if passed else 'FAIL'}  {name}")
+raise SystemExit(0 if all(checks.values()) else 1)

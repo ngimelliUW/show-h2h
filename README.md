@@ -27,7 +27,6 @@ uv run streamlit run app/dashboard.py         # the dashboard
 uv run python analysis/rivalry_report.py      # same thing as terminal text
 uv run python -m show_h2h.ingest refresh      # pull new games after a session
 uv run python -m show_h2h.ingest status       # what's in the database
-uv run python -m show_h2h.export              # build the shareable page
 ```
 
 `refresh` is the one to run regularly — it stops crawling as soon as it hits
@@ -38,26 +37,29 @@ player sees the record, results and run differential from their own side.
 
 ## Hosting
 
-Two published copies, both free:
+Live at <https://ttvlinguinimlbtheshowstats.streamlit.app> — Streamlit Community
+Cloud, deployed from this repo with `app/dashboard.py` as the entry point and
+free to run.
 
-**The live app** — Streamlit Community Cloud, deployed from this repo with
-`app/dashboard.py` as the entry point. It ships with `data/show.db` committed as
-a seed, and the **Pull new games** button in the sidebar crawls the Show API for
-anything played since, so it stays current without a redeploy. Incremental: it
-stops as soon as it reaches a game already stored.
+`data/show.db` is committed as a seed so the app has data on a cold start, and
+the **Pull new games** button crawls the Show API for anything played since.
+That crawl is incremental — it stops as soon as it reaches a game already
+stored, so it usually costs a couple of requests.
 
-**The static page** — `uv run python -m show_h2h.export` writes
-`docs/index.html`, one self-contained file (~90 KB) with every stat embedded as
-JSON. GitHub Pages serves it from `/docs` on `main`. No server, no database, no
-network — it also works opened straight off disk or emailed. It's a snapshot, so
-re-run the export and commit after an ingest.
+Streamlit Cloud's disk is ephemeral: games pulled with the button survive while
+the app is warm but are lost when it restarts, falling back to the committed
+seed. To make new games permanent, run `ingest refresh` locally and push the
+database.
 
-Both have a **Viewing as** switch, so either player sees the rivalry from their
-own side.
+The **Which one are you?** control at the top switches whose side every number
+is written from, so both players get their own view of the rivalry.
 
 Nothing here is secret: the Show API needs no key, and `.env` holds only the two
 usernames and the platform (all of which have defaults in `config.py`, so the
 hosted app runs without it).
+
+There was briefly a second, static copy served from GitHub Pages. It's gone —
+two front-ends meant two designs to keep in sync, and they immediately drifted.
 
 ## Checks
 
