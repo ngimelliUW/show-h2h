@@ -53,6 +53,12 @@ for name, table in data["lines"].items():
 size = len(json.dumps(data["lines"], separators=(",", ":")))
 check("per-game payload stays compact", size < 400_000, f"{size // 1024} KB")
 
+# Perfection needs errors: a batter reaching on one spoils it, and the page has
+# no other source for them.
+check("games carry errors for both sides",
+      all("he" in g and "ae" in g for g in data["games"]))
+check("games carry innings", all(g.get("inn") is not None for g in data["games"]))
+
 # The JS reads these by id; a rename in the template would silently break the page.
 for element in ("verdict", "wins-a", "wins-b", "whoami", "tabs", "cmp-bat",
                 "cmp-pit", "feats", "form", "tbl-bat", "tbl-pit", "tbl-games",

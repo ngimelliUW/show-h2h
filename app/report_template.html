@@ -380,6 +380,11 @@
     <h2>Feats</h2>
     <div class="feats" id="feats"></div>
 
+    <h2>Chasing history</h2>
+    <p class="note" id="cg-note"></p>
+    <div class="feats" id="cg-summary"></div>
+    <div class="card scroll" style="margin-top:12px"><table id="cg-table"></table></div>
+
     <h2>Form</h2>
     <p class="note">Every game, oldest first. Each block is one result from your side.</p>
     <div class="card" style="padding:14px"><div id="form"></div></div>
@@ -526,6 +531,7 @@ function rebuildView() {
     pa: paIn(set),
     perfect: perfectTotals(set),
     pp: LINES.pp.filter((r) => set.has(r.g)),
+    complete: completeGames(set),
   };
 }
 
@@ -613,6 +619,49 @@ function teamTotals(games) {
 
 function paIn(games) {
   return LINES.pa.filter((r) => games.has(r.g));
+}
+
+/* Complete games, and how close each came to perfection.
+
+   A complete game here is one pitcher recording every out his side made, in a
+   game that went the full nine — the five- and six-inning games in this record
+   ended early, and a no-hitter in a shortened game isn't one.
+
+   Baserunners allowed is hits + walks + hit batsmen + his side's errors. The
+   errors term is a stand-in: the box score says how many a side made, not
+   whether a batter reached on one, so a fielding error that didn't put anyone
+   on would still spoil a "perfect" here. That only ever costs a candidate, and
+   with zero errors in all of the near-misses it has never actually mattered. */
+function completeGames(games) {
+  const byGame = new Map();
+  for (const r of LINES.pit) {
+    if (!games.has(r.g) || !r.o) continue;
+    const key = `${r.g}|${r.u}`;
+    let a = byGame.get(key);
+    if (!a) byGame.set(key, a = { g: r.g, u: r.u, n: 0, outs: 0, bb: 0, name: r.p2 });
+    a.n++; a.outs += r.o; a.bb += r.bb;
+  }
+  const out = [];
+  for (const cg of byGame.values()) {
+    const game = DATA.games[cg.g];
+    if (cg.n !== 1 || !game || (game.inn || 0) < 9) continue;
+    let hits = 0, hbp = 0;
+    for (const b of LINES.bat) {
+      if (b.g !== cg.g || b.u === cg.u) continue;   // the opposing lineup
+      hits += b.h || 0; hbp += b.hbp || 0;
+    }
+    const home = game.home === cg.u;
+    const errors = (home ? game.he : game.ae) || 0;
+    const runs = (home ? game.ar : game.hr) || 0;
+    const baserunners = hits + cg.bb + hbp + errors;
+    out.push({
+      ...cg, date: game.d, inn: game.inn, hits, hbp, errors, runs, baserunners,
+      noHitter: hits === 0,
+      perfect: baserunners === 0,
+      shutout: runs === 0,
+    });
+  }
+  return out.sort((a, b) => a.baserunners - b.baserunners || b.outs - a.outs);
 }
 
 function perfectTotals(games) {
@@ -836,6 +885,46 @@ function renderFeats() {
   }
   $("feats").innerHTML = cards.map(([k, v, s]) =>
     `<div class="feat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+}
+
+function renderChase() {
+  const cgs = VIEW.complete;
+  const perfect = cgs.filter((c) => c.perfect);
+  const noNos = cgs.filter((c) => c.noHitter);
+  const oneHit = cgs.filter((c) => c.hits === 1);
+  const best = cgs[0];
+
+  const card = (label, value, sub) =>
+    `<div class="feat"><div class="k">${label}</div><div class="v">${value}</div>` +
+    `<div class="s">${sub}</div></div>`;
+  $("cg-summary").innerHTML =
+      card("Perfect games", perfect.length, perfect.length ? "immortal" : "never done")
+    + card("No-hitters", noNos.length, noNos.length ? "immortal" : "never done")
+    + card("One-hitters", oneHit.length, "complete games, one hit")
+    + card("Complete games", cgs.length, "one pitcher, all nine");
+
+  $("cg-note").textContent = best
+    ? `A complete game means one pitcher recorded every out his side made, in a game `
+      + `that went the full nine. Nobody has thrown a no-hitter${perfect.length ? "" : " or a perfect game"}. `
+      + `The closest: ${best.name} allowed ${best.baserunners} baserunner`
+      + `${best.baserunners === 1 ? "" : "s"} over ${(best.outs / 3).toFixed(0)} innings `
+      + `for ${best.u} on ${(best.date || "").slice(0, 10)}.`
+    : "No complete games in this window.";
+
+  $("cg-table").innerHTML =
+    `<thead><tr><th>Pitcher</th><th>Owner</th><th>Date</th><th>IP</th><th>H</th>
+     <th>BB</th><th>HBP</th><th>E</th><th>Baserunners</th><th>R</th><th></th></tr></thead><tbody>`
+    + cgs.slice(0, 15).map((c) => `<tr>
+        <td class="name">${c.name}</td>
+        <td class="owner"><span class="dot" style="background:${COLOR[c.u]}"></span>${c.u}</td>
+        <td class="name">${(c.date || "").slice(0, 10)}</td>
+        <td>${Math.floor(c.outs / 3)}${c.outs % 3 ? "." + (c.outs % 3) : ""}</td>
+        <td>${c.hits}</td><td>${c.bb}</td><td>${c.hbp}</td><td>${c.errors}</td>
+        <td class="hi">${c.baserunners}</td><td>${c.runs}</td>
+        <td class="name">${c.perfect ? '<span class="pill">perfect</span>'
+            : c.noHitter ? '<span class="pill">no-hitter</span>'
+            : c.shutout ? '<span class="pill">shutout</span>' : ""}</td></tr>`).join("")
+    + "</tbody>";
 }
 
 function renderForm() {
@@ -1130,7 +1219,7 @@ function renderAll() {
   rebuildView();
   const sections = {
     board: renderBoard, whoami: renderWhoami, window: renderWindow, compare: renderCompare,
-    feats: renderFeats, form: renderForm, matchup: renderMatchup,
+    feats: renderFeats, chase: renderChase, form: renderForm, matchup: renderMatchup,
     hitters: () => { controls("bat"); renderBoardTable("bat"); },
     pitchers: () => { controls("pit"); renderBoardTable("pit"); },
     games: renderGames, tabs: () => { renderTabs(); showTab(); },

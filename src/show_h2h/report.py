@@ -77,6 +77,7 @@ def build() -> dict:
                g.home_username AS home, g.away_username AS away,
                g.home_runs AS hr, g.away_runs AS ar,
                g.home_hits AS hh, g.away_hits AS ah,
+               g.home_errors AS he, g.away_errors AS ae,
                g.home_squad AS hs, g.away_squad AS asq,
                g.innings AS inn, (g.ruling <> '0') AS early, g.winner AS win
         FROM games g WHERE g.is_h2h = 1 ORDER BY g.played_at

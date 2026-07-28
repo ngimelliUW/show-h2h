@@ -165,6 +165,20 @@ Everything here was verified against live responses, not the docs.
   mentions appear in the narrative too. Parse the whole blob and home runs come
   out 57% high. `playbyplay.split_sections()` separates them.
 
+## Chasing history
+
+The Overview tab tracks perfect games and no-hitters. Neither has happened. A
+complete game means one pitcher recorded every out his side made in a game that
+went the full nine — the five- and six-inning games in this record ended early,
+and a no-hitter in a shortened game isn't one, which is why the count is 48 and
+not 58.
+
+Baserunners allowed is hits + walks + hit batsmen + the pitching side's errors.
+That last term is a stand-in: the box score reports how many errors a side made,
+not whether a batter reached on one, so a harmless fielding error would still
+spoil a "perfect" here. It only ever costs a candidate, and every near-miss so
+far has been error-free, so it has never mattered.
+
 ## What's only in the play-by-play
 
 There's no pitch-level endpoint, but the prose in `game_log` carries a lot the
