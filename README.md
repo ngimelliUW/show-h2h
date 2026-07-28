@@ -167,7 +167,18 @@ Everything here was verified against live responses, not the docs.
 
 ## Chasing history
 
-The Overview tab tracks perfect games and no-hitters. Neither has happened. A
+The Overview tab tracks what nobody has managed yet, each with the nearest miss,
+because a bare zero says nothing about whether a feat is imminent or absurd.
+Still outstanding: perfect game, no-hitter, the cycle (nobody has more than 3 of
+the 4 hits — triples are the bottleneck, 20 in 2,011 batting lines), a 3-homer
+game (best is 2), and a 20-strikeout game (best is 18). Anything achieved drops
+off the list automatically.
+
+Alongside it, the rarest things that *have* happened: 3 immaculate innings
+(three strikeouts on exactly nine pitches — only detectable because the log
+prints a pitch count per half-inning), 102 strike-out-the-sides, 15 walk-offs.
+
+A
 complete game means one pitcher recorded every out his side made in a game that
 went the full nine — the five- and six-inning games in this record ended early,
 and a no-hitter in a shortened game isn't one, which is why the count is 48 and

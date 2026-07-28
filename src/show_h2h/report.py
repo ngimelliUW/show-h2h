@@ -110,10 +110,19 @@ def build() -> dict:
         "pa": _table("""
             SELECT e.game_uuid AS g, e.batting_username AS b, e.pitching_username AS t,
                    e.batter AS p, e.kind AS k, e.pitch_type AS pt, e.location AS lo,
-                   e.timing AS ti, e.distance AS d, e.direction AS dir, e.go_ahead AS ga
+                   e.timing AS ti, e.distance AS d, e.direction AS dir, e.go_ahead AS ga,
+                   e.inning AS inn
             FROM pa_events e JOIN games x ON x.game_uuid = e.game_uuid
             WHERE x.is_h2h = 1
         """, index),
+        # Half-innings carry the only pitch counts the API exposes, which is what
+        # makes an immaculate inning detectable.
+        "hi": _table('''
+            SELECT h.game_uuid AS g, h.batting_username AS b, h.inning AS inn,
+                   h.pitches AS pit, h.strikeouts AS k, h.runs AS r, h.idx
+            FROM half_innings h JOIN games x ON x.game_uuid = h.game_uuid
+            WHERE x.is_h2h = 1 ORDER BY h.game_uuid, h.idx
+        ''', index),
         "pp": _table("""
             SELECT c.game_uuid AS g, c.username AS u, c.batter AS p,
                    c.exit_velo AS v, c.result AS res, c.outcome AS what

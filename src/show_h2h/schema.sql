@@ -207,6 +207,22 @@ CREATE TABLE IF NOT EXISTS contact_events (
 );
 
 
+-- One row per half-inning, from the totals line the log prints after each.
+-- The only place pitch counts exist, which is what makes an immaculate inning
+-- (three strikeouts on exactly nine pitches) detectable at all.
+CREATE TABLE IF NOT EXISTS half_innings (
+    game_uuid        TEXT NOT NULL,
+    idx              INTEGER NOT NULL,   -- order within the game
+    inning           INTEGER,
+    squad            TEXT,
+    batting_username TEXT COLLATE NOCASE,
+    pitching_username TEXT COLLATE NOCASE,
+    runs INTEGER, hits INTEGER, walks INTEGER, errors INTEGER,
+    pitches INTEGER, lob INTEGER, strikeouts INTEGER,
+    PRIMARY KEY (game_uuid, idx)
+);
+
+
 -- Per-game context from the trailer. Difficulty is here because the games were
 -- not all played on the same one.
 CREATE TABLE IF NOT EXISTS game_meta (

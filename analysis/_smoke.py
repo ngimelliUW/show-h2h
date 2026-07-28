@@ -35,7 +35,7 @@ check("no NaN leaked into the JSON", "NaN" not in json.dumps(data))
 
 # The page re-aggregates per-game rows so it can window to "the last N games",
 # so these tables are the payload rather than pre-computed totals.
-for name in ("bat", "pit", "pa", "pp"):
+for name in ("bat", "pit", "pa", "pp", "hi"):
     table = data["lines"].get(name, {})
     check(f"lines.{name} present", bool(table.get("data")),
           f"{len(table.get('data', []))} rows")
@@ -81,6 +81,32 @@ check("render sections are isolated", 'section "${name}" failed' in html)
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
 check("dashboard module is importable", Path("app/dashboard.py").exists())
+
+# The hosted app reads data/seed.db, not the working database, so an ingest or a
+# re-parse that isn't followed by `ingest snapshot` ships new code against old
+# tables — which is how the half-inning stats first went live reading zero rows.
+seed = Path(__file__).resolve().parents[1] / "data" / "seed.db"
+if not seed.exists():
+    check("data/seed.db exists", False, "run: ingest snapshot")
+else:
+    import sqlite3
+
+    working = sqlite3.connect(config.DB_PATH)
+    published = sqlite3.connect(seed)
+    stale = []
+    for table in ("games", "batting_lines", "pitching_lines", "pa_events",
+                  "contact_events", "half_innings"):
+        def count(conn):
+            try:
+                return conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            except sqlite3.Error:
+                return -1
+        if count(published) < count(working):
+            stale.append(f"{table} {count(published)}<{count(working)}")
+    check("published seed is not behind the working database", not stale,
+          "; ".join(stale) or "in sync — run `ingest snapshot` after any ingest")
+    working.close()
+    published.close()
 
 print("\nALL PASS" if ok else "\nSOME CHECKS FAILED")
 raise SystemExit(0 if ok else 1)

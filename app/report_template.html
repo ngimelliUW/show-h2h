@@ -380,7 +380,17 @@
     <h2>Feats</h2>
     <div class="feats" id="feats"></div>
 
-    <h2>Chasing history</h2>
+    <h2>Never done</h2>
+    <p class="note">
+      The feats still on the table, and how close anyone has come. A zero on its
+      own doesn't say whether something is imminent or absurd — the near miss does.
+    </p>
+    <div class="feats" id="never"></div>
+
+    <h2>Rarest things done</h2>
+    <div class="feats" id="rarest"></div>
+
+    <h2>Chasing a perfect game</h2>
     <p class="note" id="cg-note"></p>
     <div class="feats" id="cg-summary"></div>
     <div class="card scroll" style="margin-top:12px"><table id="cg-table"></table></div>
@@ -500,6 +510,7 @@ const LINES = {
   pit: expand(DATA.lines.pit),
   pa: expand(DATA.lines.pa),
   pp: expand(DATA.lines.pp),
+  hi: expand(DATA.lines.hi),
 };
 
 const [P1, P2] = DATA.players;
@@ -532,6 +543,7 @@ function rebuildView() {
     perfect: perfectTotals(set),
     pp: LINES.pp.filter((r) => set.has(r.g)),
     complete: completeGames(set),
+    rare: rareFeats(set),
   };
 }
 
@@ -619,6 +631,56 @@ function teamTotals(games) {
 
 function paIn(games) {
   return LINES.pa.filter((r) => games.has(r.g));
+}
+
+/* Feats that have never happened, and the closest anyone has come.
+
+   The interesting number here is usually zero, so each one carries how near a
+   miss it was — a bare 0 says nothing about whether it's imminent or absurd. */
+function rareFeats(games) {
+  const bat = LINES.bat.filter((r) => games.has(r.g));
+  const pit = LINES.pit.filter((r) => games.has(r.g));
+  const hi = LINES.hi.filter((r) => games.has(r.g));
+
+  // A cycle needs a single, a double, a triple and a homer in one game.
+  // Triples are the bottleneck: they're the rarest hit in the record by far.
+  const legs = (r) => (r.h - r.d2 - r.d3 - r.hr > 0) + (r.d2 > 0) + (r.d3 > 0) + (r.hr > 0);
+  const bestCycle = bat.reduce((a, r) => Math.max(a, legs(r)), 0);
+  const cycles = bat.filter((r) => legs(r) === 4);
+
+  const mostHr = bat.reduce((a, r) => Math.max(a, r.hr || 0), 0);
+  const mostHits = bat.reduce((a, r) => Math.max(a, r.h || 0), 0);
+  const mostRbi = bat.reduce((a, r) => Math.max(a, r.rbi || 0), 0);
+  const mostK = pit.reduce((a, r) => Math.max(a, r.so || 0), 0);
+
+  // Three strikeouts on exactly nine pitches: every pitch a strike, nobody
+  // fouling one off. Nine pitches with three punchouts can't be anything else.
+  const immaculate = hi.filter((r) => r.k >= 3 && r.pit === 9);
+  const strikeSide = hi.filter((r) => r.k >= 3);
+
+  // A walk-off is the home side scoring in the game's final half-inning and
+  // winning — the game stops the moment they go ahead, so it's always the last.
+  const lastHalf = new Map();
+  for (const r of hi) {
+    const prev = lastHalf.get(r.g);
+    if (!prev || r.idx > prev.idx) lastHalf.set(r.g, r);
+  }
+  const walkoffs = [...lastHalf.values()].filter((r) => {
+    const game = DATA.games[r.g];
+    if (!game || !r.r) return false;
+    const winner = game.win === "home" ? game.home : game.away;
+    return winner === r.b;
+  });
+
+  return {
+    cycles, bestCycle,
+    threeHr: bat.filter((r) => r.hr >= 3), mostHr,
+    twentyK: pit.filter((r) => r.so >= 20), mostK,
+    immaculate, strikeSide, walkoffs,
+    fourHit: bat.filter((r) => r.h >= 4), mostHits,
+    fiveRbi: bat.filter((r) => r.rbi >= 5), mostRbi,
+    threeSteal: bat.filter((r) => r.sb >= 3),
+  };
 }
 
 /* Complete games, and how close each came to perfection.
@@ -887,6 +949,42 @@ function renderFeats() {
     `<div class="feat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
 }
 
+function renderNever() {
+  const f = VIEW.rare, cgs = VIEW.complete;
+  const perfect = cgs.filter((c) => c.perfect);
+  const noNos = cgs.filter((c) => c.noHitter);
+  const closestBR = cgs.length ? cgs[0].baserunners : null;
+  const closestHits = cgs.length ? Math.min(...cgs.map((c) => c.hits)) : null;
+
+  const card = (label, value, sub) =>
+    `<div class="feat"><div class="k">${label}</div><div class="v">${value}</div>` +
+    `<div class="s">${sub}</div></div>`;
+
+  const never = [
+    ["Perfect game", perfect.length,
+     closestBR === null ? "no complete games yet" : `closest: ${closestBR} baserunner${closestBR === 1 ? "" : "s"}`],
+    ["No-hitter", noNos.length,
+     closestHits === null ? "no complete games yet" : `closest: ${closestHits} hit${closestHits === 1 ? "" : "s"}`],
+    ["Cycle", f.cycles.length, `closest: ${f.bestCycle} of the 4 hits`],
+    ["3-homer game", f.threeHr.length, `most in one game: ${f.mostHr}`],
+    ["20-strikeout game", f.twentyK.length, `most in one game: ${f.mostK}`],
+  ].filter(([, n]) => n === 0);   // once someone does it, it stops being "never"
+
+  $("never").innerHTML = never.length
+    ? never.map(([k, v, s]) => card(k, v, s)).join("")
+    : `<div class="feat"><div class="k">Nothing left</div><div class="v">—</div>
+       <div class="s">every feat on the list has been done</div></div>`;
+
+  $("rarest").innerHTML = [
+    ["Immaculate innings", f.immaculate.length, "3 K on exactly 9 pitches"],
+    ["Struck out the side", f.strikeSide.length, "3 K in one inning"],
+    ["Walk-off wins", f.walkoffs.length, "won it in the final at-bat"],
+    ["4-hit games", f.fourHit.length, `most hits: ${f.mostHits}`],
+    ["5-RBI games", f.fiveRbi.length, `most RBI: ${f.mostRbi}`],
+    ["3-steal games", f.threeSteal.length, "on the run"],
+  ].map(([k, v, s]) => card(k, v, s)).join("");
+}
+
 function renderChase() {
   const cgs = VIEW.complete;
   const perfect = cgs.filter((c) => c.perfect);
@@ -898,10 +996,11 @@ function renderChase() {
     `<div class="feat"><div class="k">${label}</div><div class="v">${value}</div>` +
     `<div class="s">${sub}</div></div>`;
   $("cg-summary").innerHTML =
-      card("Perfect games", perfect.length, perfect.length ? "immortal" : "never done")
-    + card("No-hitters", noNos.length, noNos.length ? "immortal" : "never done")
+      card("Complete games", cgs.length, "one pitcher, all nine")
     + card("One-hitters", oneHit.length, "complete games, one hit")
-    + card("Complete games", cgs.length, "one pitcher, all nine");
+    + card("Shutouts", cgs.filter((c) => c.shutout).length, "complete-game, no runs")
+    + card("Fewest baserunners", best ? best.baserunners : "—",
+           best ? `${best.name}, ${(best.outs / 3).toFixed(0)} innings` : "");
 
   $("cg-note").textContent = best
     ? `A complete game means one pitcher recorded every out his side made, in a game `
@@ -1219,7 +1318,7 @@ function renderAll() {
   rebuildView();
   const sections = {
     board: renderBoard, whoami: renderWhoami, window: renderWindow, compare: renderCompare,
-    feats: renderFeats, chase: renderChase, form: renderForm, matchup: renderMatchup,
+    feats: renderFeats, never: renderNever, chase: renderChase, form: renderForm, matchup: renderMatchup,
     hitters: () => { controls("bat"); renderBoardTable("bat"); },
     pitchers: () => { controls("pit"); renderBoardTable("pit"); },
     games: renderGames, tabs: () => { renderTabs(); showTab(); },

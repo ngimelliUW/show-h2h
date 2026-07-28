@@ -163,6 +163,44 @@ def parse_narrative(narrative: str) -> list[dict]:
     return events
 
 
+# Each half-inning ends with its own line of totals. Splitting on it gives both
+# the block of plays and the pitch count for those plays, which is the only
+# place pitch counts appear at all.
+_HALF_SUMMARY = re.compile(
+    r"Runs: (\d+) Hits: (\d+) Walks: (\d+) Errors: (\d+) Pitches: (\d+)"
+    r"(?: Runners Left On: (\d+))?")
+
+
+def parse_half_innings(narrative: str) -> list[dict]:
+    """One row per half-inning: who batted, how many pitches, what happened.
+
+    Pitch counts unlock immaculate innings (three strikeouts on exactly nine
+    pitches) and pitch efficiency, neither of which the box score can express.
+    """
+    halves: list[dict] = []
+    inning = 0
+    squad = None
+    last_end = 0
+    for m in _HALF_SUMMARY.finditer(narrative):
+        block = narrative[last_end:m.start()]
+        last_end = m.end()
+        for header in re.finditer(r"Inning (\d+):", block):
+            inning = int(header.group(1))
+        bat = re.findall(r"(\S[^.\n]*?) batting\.", block)
+        if bat:
+            squad = bat[-1].strip()
+        halves.append({
+            "inning": inning,
+            "squad": squad,
+            "runs": int(m.group(1)), "hits": int(m.group(2)),
+            "walks": int(m.group(3)), "errors": int(m.group(4)),
+            "pitches": int(m.group(5)),
+            "lob": int(m.group(6)) if m.group(6) else 0,
+            "strikeouts": len(re.findall(r"struck out|called out on strikes", block)),
+        })
+    return halves
+
+
 def parse_trailer(trailer: str) -> dict:
     """Perfect-perfect contact (with exit velocity), difficulty, game scores."""
     perfect = [
@@ -227,4 +265,8 @@ def parse(text: str) -> dict:
     narrative, trailer = split_sections(text, keep_markers=True)
     trailer_data = parse_trailer(trailer)
     attribute_contact(narrative, trailer_data["perfect"])
-    return {"events": parse_narrative(narrative), **trailer_data}
+    return {
+        "events": parse_narrative(narrative),
+        "halves": parse_half_innings(narrative),
+        **trailer_data,
+    }
