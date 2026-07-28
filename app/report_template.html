@@ -314,6 +314,10 @@
     <div class="board-meta">
       <div class="stat-strip" id="strip"></div>
       <div class="whoami">
+        <span class="whoami-label">Window</span>
+        <div class="seg" id="window" role="group" aria-label="Limit every stat to recent games"></div>
+      </div>
+      <div class="whoami">
         <span class="whoami-label">You are</span>
         <div class="seg" id="whoami" role="group" aria-label="Choose which player you are"></div>
       </div>
@@ -430,12 +434,33 @@ const DATA = /*__DATA__*/null;
 // render time while the Python that builds DATA is an imported module, so a
 // deploy can briefly serve a new template against an older payload — and one
 // `undefined.find(...)` used to blank every section that renders after it.
-for (const k of ["games", "batting", "pitching", "coop", "koGrid", "koTiming",
-                 "homers", "perfect", "perfectHits", "clutch"]) {
+for (const k of ["games", "coop"]) {
   if (!Array.isArray(DATA[k])) DATA[k] = [];
 }
-DATA.team = DATA.team || {};
 DATA.players = DATA.players || ["Player 1", "Player 2"];
+DATA.lines = DATA.lines || {};
+
+// Per-game rows arrive column-encoded: names once, repeated strings as indexes
+// into a small dictionary. Expand them back into objects in a single pass.
+function expand(table) {
+  if (!table || !Array.isArray(table.data)) return [];
+  const { cols, dicts = {}, data } = table;
+  return data.map((row) => {
+    const out = {};
+    cols.forEach((col, i) => {
+      const v = row[i];
+      out[col] = (dicts[col] && typeof v === "number") ? dicts[col][v] : v;
+    });
+    return out;
+  });
+}
+
+const LINES = {
+  bat: expand(DATA.lines.bat),
+  pit: expand(DATA.lines.pit),
+  pa: expand(DATA.lines.pa),
+  pp: expand(DATA.lines.pp),
+};
 
 const [P1, P2] = DATA.players;
 const COLOR = { [P1]: "var(--home)", [P2]: "var(--away)" };
@@ -446,6 +471,130 @@ const $ = (id) => document.getElementById(id);
 const num = (v, d = 0) => (v === null || v === undefined || Number.isNaN(v)) ? "" : Number(v).toFixed(d);
 // Baseball drops the leading zero on AVG/OBP/SLG/OPS but keeps it on ERA/WHIP.
 const rate = (v) => (v === null || v === undefined) ? "" : Number(v).toFixed(3).replace(/^0\./, ".");
+
+/* ---------------- the "last N games" window ----------------
+   Everything on the page is derived from these aggregates rather than from
+   pre-computed totals, so narrowing the window re-derives every stat — record,
+   leaderboards, pitch grid, contact quality — from the same rows. */
+let window_ = 0;                       // 0 = every game
+let VIEW = {};                         // aggregates for the current window
+const div = (a, b) => (b ? a / b : null);
+
+function rebuildView() {
+  const set = windowSet();
+  VIEW = {
+    set,
+    games: DATA.games.filter((_, i) => set.has(i)),
+    bat: battingTotals(set),
+    pit: pitchingTotals(set),
+    team: teamTotals(set),
+    pa: paIn(set),
+    perfect: perfectTotals(set),
+    pp: LINES.pp.filter((r) => set.has(r.g)),
+  };
+}
+
+function windowGames() {
+  const all = DATA.games.map((g, i) => i);
+  return window_ > 0 ? all.slice(-window_) : all;
+}
+
+function windowSet() {
+  return new Set(windowGames());
+}
+
+function sumBy(rows, keyFn, fields) {
+  const out = new Map();
+  for (const r of rows) {
+    const key = keyFn(r);
+    let acc = out.get(key);
+    if (!acc) out.set(key, acc = { _games: new Set() });
+    acc._games.add(r.g);
+    for (const f of fields) acc[f] = (acc[f] || 0) + (Number(r[f]) || 0);
+  }
+  for (const acc of out.values()) { acc.games = acc._games.size; delete acc._games; }
+  return out;
+}
+
+const BAT_FIELDS = ["ab","h","hr","rbi","r","bb","so","sb","cs","d2","d3","hbp","sf","sh"];
+const PIT_FIELDS = ["o","so","bb","h","er","r","w","l","sv","hld"];
+
+function battingTotals(games, keyFn = (r) => `${r.u} ${r.p}`) {
+  const rows = LINES.bat.filter((r) => games.has(r.g));
+  const out = [];
+  for (const [key, t] of sumBy(rows, keyFn, BAT_FIELDS)) {
+    const [u, p] = key.split(" ");
+    const pa = t.ab + t.bb + t.hbp + t.sf + t.sh;
+    const obDen = t.ab + t.bb + t.hbp + t.sf;
+    const tb = t.h + t.d2 + 2 * t.d3 + 3 * t.hr;
+    const obp = div(t.h + t.bb + t.hbp, obDen), slg = div(tb, t.ab);
+    out.push({
+      u, p, games: t.games, pa, ab: t.ab, h: t.h, hr: t.hr, rbi: t.rbi, r: t.r,
+      bb: t.bb, so: t.so, sb: t.sb, cs: t.cs, d2: t.d2, d3: t.d3,
+      avg: div(t.h, t.ab), obp, slg,
+      ops: (obp === null || slg === null) ? null : obp + slg,
+      iso: div(t.d2 + 2 * t.d3 + 3 * t.hr, t.ab),
+      babip: div(t.h - t.hr, t.ab - t.so - t.hr + t.sf),
+      sbp: div(t.sb, t.sb + t.cs),
+      kp: pa ? 100 * t.so / pa : null, bbp: pa ? 100 * t.bb / pa : null,
+    });
+  }
+  return out;
+}
+
+function pitchingTotals(games, keyFn = (r) => `${r.u} ${r.p2}`) {
+  const rows = LINES.pit.filter((r) => games.has(r.g));
+  const starts = new Map();
+  for (const r of rows) if (r.s === 0) {
+    const k = keyFn(r); starts.set(k, (starts.get(k) || 0) + 1);
+  }
+  const out = [];
+  for (const [key, t] of sumBy(rows, keyFn, PIT_FIELDS)) {
+    const [u, p] = key.split(" ");
+    out.push({
+      u, p, games: t.games, gs: starts.get(key) || 0, outs: t.o,
+      // Innings in real baseball notation: whole innings, leftover outs as
+      // tenths. Sorts correctly as a number because the fraction is under 1.
+      ip: Math.floor(t.o / 3) + (t.o % 3) / 10,
+      so: t.so, bb: t.bb, h: t.h, er: t.er, r: t.r,
+      w: t.w, l: t.l, sv: t.sv, hld: t.hld,
+      // 27 = 9 innings x 3 outs, so all of these are per-nine rates.
+      era: div(27 * t.er, t.o), ra9: div(27 * t.r, t.o),
+      k9: div(27 * t.so, t.o), bb9: div(27 * t.bb, t.o),
+      kbb: div(t.so, t.bb), whip: div(3 * (t.h + t.bb), t.o),
+    });
+  }
+  return out;
+}
+
+function teamTotals(games) {
+  const bat = battingTotals(games, (r) => `${r.u} `);
+  const pit = pitchingTotals(games, (r) => `${r.u} `);
+  const out = {};
+  for (const b of bat) out[b.u] = { bat: b };
+  for (const p of pit) (out[p.u] = out[p.u] || {}).pit = p;
+  return out;
+}
+
+function paIn(games) {
+  return LINES.pa.filter((r) => games.has(r.g));
+}
+
+function perfectTotals(games) {
+  const rows = LINES.pp.filter((r) => games.has(r.g));
+  const out = new Map();
+  for (const r of rows) {
+    const key = `${r.u} ${r.p}`;
+    let a = out.get(key);
+    if (!a) out.set(key, a = { u: r.u, p: r.p, n: 0, maxv: 0, sum: 0, hr: 0, hits: 0, outs: 0 });
+    a.n++; a.sum += r.v; a.maxv = Math.max(a.maxv, r.v);
+    if (r.res === "home run") a.hr++;
+    else if (r.res === "out") a.outs++;
+    else a.hits++;
+  }
+  return [...out.values()].map((a) => ({ ...a, avgv: a.sum / a.n }))
+    .sort((x, y) => y.n - x.n || y.maxv - x.maxv);
+}
 
 /* ---------------- perspective ---------------- */
 // Every game is stored home/away as the API reports it. "You" is whichever side
@@ -464,7 +613,7 @@ function fromView(g, who) {
 const opponentOf = (who) => (who === P1 ? P2 : P1);
 
 function record(who) {
-  const gs = DATA.games.map((g) => fromView(g, who));
+  const gs = (VIEW.games || DATA.games).map((g) => fromView(g, who));
   const w = gs.filter((g) => g.res === "W").length;
   const l = gs.filter((g) => g.res === "L").length;
   const rf = gs.reduce((a, g) => a + g.my, 0), ra = gs.reduce((a, g) => a + g.their, 0);
@@ -528,6 +677,27 @@ function renderWhoami() {
     b.addEventListener("click", () => { viewer = b.dataset.p; renderAll(); }));
 }
 
+// Offer only windows the record can actually fill, so "Last 50" never appears
+// against 30 games and quietly means the same as "All".
+function renderWindow() {
+  const total = DATA.games.length;
+  const options = [10, 25, 50].filter((n) => n < total).map((n) => [n, `Last ${n}`]);
+  options.push([0, `All ${total}`]);
+  $("window").innerHTML = options
+    .map(([n, label]) =>
+      `<button type="button" data-n="${n}" aria-pressed="${n === window_}">${label}</button>`)
+    .join("");
+  $("window").querySelectorAll("button").forEach((b) =>
+    b.addEventListener("click", () => {
+      window_ = Number(b.dataset.n);
+      rebuildView();
+      // Rescale the qualifiers to the new window before anything renders.
+      state.bat.min = scaledMin("bat");
+      state.pit.min = scaledMin("pit");
+      renderAll();
+    }));
+}
+
 /* ---------------- overview ---------------- */
 const CMP_BAT = [
   ["Batting average", "avg", false, rate], ["On-base %", "obp", false, rate],
@@ -548,7 +718,7 @@ const CMP_PIT = [
 function renderCompare() {
   const you = viewer, them = opponentOf(viewer);
   const build = (rows, key) => rows.map(([label, f, lower, fmt]) => {
-    const a = DATA.team[you]?.[key]?.[f], b = DATA.team[them]?.[key]?.[f];
+    const a = VIEW.team[you]?.[key]?.[f], b = VIEW.team[them]?.[key]?.[f];
     if (a === undefined || b === undefined) return "";
     const aWins = lower ? a < b : a > b, bWins = lower ? b < a : b > a;
     return `<tr>
@@ -561,7 +731,7 @@ function renderCompare() {
   $("cmp-pit").innerHTML = build(CMP_PIT, "pit");
   $("cmp-note").textContent =
     `${you} on the left, ${them} on the right. Bold is the better mark. `
-    + `Totals are every card either of you played across all ${DATA.games.length} games.`;
+    + `Totals are every card either of you played across ${VIEW.games.length} games.`;
 }
 
 function renderFeats() {
@@ -585,13 +755,13 @@ function renderFeats() {
     ["Extra innings", played.filter((g) => g.inn > 9).length, "went past the 9th"],
     ["Ended early", played.filter((g) => g.early).length, "quit or disconnect"],
   ];
-  const clutch = DATA.clutch.find((c) => c.u === viewer);
-  if (clutch) {
-    cards.push(["Go-ahead plays", clutch.go_ahead,
-                `${clutch.go_ahead_hr} of them home runs`]);
-    cards.push(["Longest homer",
-                (DATA.homers.filter((h) => h.u === viewer)[0]?.ft ?? 0) + " ft",
-                "see the Matchup tab"]);
+  const mine = VIEW.pa.filter((e) => e.b === viewer);
+  const goAhead = mine.filter((e) => e.ga);
+  if (mine.length) {
+    cards.push(["Go-ahead plays", goAhead.length,
+                `${goAhead.filter((e) => e.k === "home_run").length} of them home runs`]);
+    const longest = Math.max(0, ...mine.filter((e) => e.d).map((e) => e.d));
+    cards.push(["Longest homer", `${longest} ft`, "see the Matchup tab"]);
   }
   $("feats").innerHTML = cards.map(([k, v, s]) =>
     `<div class="feat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
@@ -606,7 +776,7 @@ function renderForm() {
 
 /* ---------------- leaderboards ---------------- */
 const BAT_COLS = [
-  ["p", "Player", "name"], ["u", "Owner", "owner"], ["g", "G"], ["pa", "PA"], ["ab", "AB"],
+  ["p", "Player", "name"], ["u", "Owner", "owner"], ["games", "G"], ["pa", "PA"], ["ab", "AB"],
   ["h", "H"], ["avg", "AVG", "", rate], ["obp", "OBP", "", rate], ["slg", "SLG", "", rate],
   ["ops", "OPS", "", rate], ["iso", "ISO", "", rate], ["hr", "HR"], ["rbi", "RBI"], ["r", "R"],
   ["d2", "2B"], ["d3", "3B"], ["bb", "BB"], ["so", "SO"],
@@ -614,7 +784,7 @@ const BAT_COLS = [
   ["sb", "SB"], ["cs", "CS"], ["sbp", "SB%", "", rate], ["babip", "BABIP", "", rate],
 ];
 const PIT_COLS = [
-  ["p", "Player", "name"], ["u", "Owner", "owner"], ["g", "G"], ["gs", "GS"],
+  ["p", "Player", "name"], ["u", "Owner", "owner"], ["games", "G"], ["gs", "GS"],
   ["ip", "IP", "", (v) => num(v, 1)], ["so", "SO"],
   ["k9", "K/9", "", (v) => num(v, 2)], ["bb9", "BB/9", "", (v) => num(v, 2)],
   ["kbb", "K/BB", "", (v) => num(v, 2)], ["era", "ERA", "", (v) => num(v, 2)],
@@ -624,9 +794,19 @@ const PIT_COLS = [
 // Lower is better for these, so a first click should sort ascending.
 const LOWER = new Set(["era", "whip", "ra9", "bb9", "kp"]);
 
+// Playing-time floors, expressed against the full 111-game history and scaled
+// down with the window — a 50-AB minimum over ten games qualifies nobody, and
+// an empty leaderboard reads as a bug rather than as a filter doing its job.
+const BASE_MIN = { bat: 50, pit: 15 };
+
+function scaledMin(kind) {
+  const frac = (VIEW.games?.length || 1) / (DATA.games.length || 1);
+  return Math.max(1, Math.round(BASE_MIN[kind] * frac));
+}
+
 const state = {
-  bat: { sort: "hr", asc: false, min: 50, owner: "Both", find: "" },
-  pit: { sort: "so", asc: false, min: 15, owner: "Both", find: "" },
+  bat: { sort: "hr", asc: false, min: BASE_MIN.bat, owner: "Both", find: "" },
+  pit: { sort: "so", asc: false, min: BASE_MIN.pit, owner: "Both", find: "" },
 };
 
 function controls(kind) {
@@ -652,7 +832,7 @@ function controls(kind) {
 
 function rowsFor(kind) {
   const s = state[kind];
-  const src = kind === "bat" ? DATA.batting : DATA.pitching;
+  const src = kind === "bat" ? VIEW.bat : VIEW.pit;
   const qual = kind === "bat" ? "ab" : "ip";
   let rows = src.filter((r) => (r[qual] ?? 0) >= s.min);
   if (s.owner !== "Both") rows = rows.filter((r) => r.u === s.owner);
@@ -741,7 +921,17 @@ const TIMING_LABEL = {
 };
 
 function koTable(el, batter, pitcher) {
-  const rows = DATA.koGrid.filter((r) => r.bat === batter && r.pit === pitcher);
+  const counts = new Map();
+  for (const e of VIEW.pa) {
+    if (e.k !== "strikeout" || e.b !== batter || e.t !== pitcher) continue;
+    if (!e.pt || !e.lo) continue;
+    const key = `${e.pt}|${e.lo}`;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  const rows = [...counts].map(([key, n]) => {
+    const [type, loc] = key.split("|");
+    return { type, loc, n };
+  });
   if (!rows.length) { $(el).innerHTML = "<tbody><tr><td>No data yet.</td></tr></tbody>"; return 0; }
   const types = [...new Set(rows.map((r) => r.type))];
   const locs = LOC_ORDER.filter((l) => rows.some((r) => r.loc === l))
@@ -773,7 +963,7 @@ function renderMatchup() {
   const b = koTable("ko-b", them, you);
   // The grids only hold strikeouts where the log named BOTH pitch and spot, so
   // they undercount the box score. Say so rather than implying a total.
-  const allK = (u) => DATA.team[u]?.bat?.so ?? 0;
+  const allK = (u) => VIEW.team[u]?.bat?.so ?? 0;
   $("ko-head-a").textContent =
     `${them} striking out ${you} — ${a} of ${allK(you)} with pitch detail`;
   $("ko-head-b").textContent =
@@ -787,8 +977,9 @@ function renderMatchup() {
 
   // discipline
   const kinds = ["chasing", "late", "early", "looking", "swinging"];
-  const tot = (u) => DATA.koTiming.filter((r) => r.bat === u).reduce((s, r) => s + r.n, 0);
-  const val = (u, k) => DATA.koTiming.find((r) => r.bat === u && r.timing === k)?.n || 0;
+  const ks = VIEW.pa.filter((e) => e.k === "strikeout" && e.ti);
+  const tot = (u) => ks.filter((e) => e.b === u).length;
+  const val = (u, k) => ks.filter((e) => e.b === u && e.ti === k).length;
   const max = Math.max(...DATA.players.flatMap((u) => kinds.map((k) => val(u, k))), 1);
   $("discipline").innerHTML = kinds.filter((k) => val(you, k) || val(them, k)).map((k) =>
     DATA.players.map((u) => {
@@ -800,8 +991,8 @@ function renderMatchup() {
     }).join("")).join("");
 
   // perfect-perfect
-  const mine = DATA.perfect.filter((r) => r.u === you);
-  const theirs = DATA.perfect.filter((r) => r.u === them);
+  const mine = VIEW.perfect.filter((r) => r.u === you);
+  const theirs = VIEW.perfect.filter((r) => r.u === them);
   const sum = (rows, f) => rows.reduce((s, r) => s + (r[f] || 0), 0);
   const card = (label, v, sub) =>
     `<div class="feat"><div class="k">${label}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`;
@@ -819,7 +1010,7 @@ function renderMatchup() {
   $("pp-table").innerHTML =
     `<thead><tr><th>Player</th><th>Owner</th><th>PP</th><th>Max</th><th>Avg</th>
      <th>HR</th><th>Hits</th><th>Outs</th></tr></thead><tbody>`
-    + DATA.perfect.slice(0, 25).map((r) => `<tr>
+    + VIEW.perfect.slice(0, 25).map((r) => `<tr>
         <td class="name">${r.p}</td>
         <td class="owner"><span class="dot" style="background:${COLOR[r.u]}"></span>${r.u}</td>
         <td>${r.n}</td><td>${r.maxv}</td><td>${num(r.avgv, 1)}</td>
@@ -828,22 +1019,23 @@ function renderMatchup() {
 
   $("pp-hits").innerHTML =
     `<thead><tr><th>Player</th><th>Owner</th><th>Exit velo</th><th>Result</th><th>What happened</th></tr></thead><tbody>`
-    + DATA.perfectHits.map((r) => `<tr>
+    + VIEW.pp.slice().sort((a, b) => b.v - a.v).slice(0, 40).map((r) => `<tr>
         <td class="name">${r.p}</td>
         <td class="owner"><span class="dot" style="background:${COLOR[r.u]}"></span>${r.u}</td>
-        <td>${r.mph} mph</td>
+        <td>${r.v} mph</td>
         <td class="name ${r.res === "out" ? "l" : "w"}">${r.res}</td>
         <td class="name" style="white-space:normal">${r.what}</td></tr>`).join("")
     + "</tbody>";
 
   $("hr-table").innerHTML =
     `<thead><tr><th>Player</th><th>Owner</th><th>Distance</th><th>To</th><th>Date</th><th></th></tr></thead><tbody>`
-    + DATA.homers.slice(0, 25).map((r) => `<tr>
-        <td class="name">${r.p}</td>
-        <td class="owner"><span class="dot" style="background:${COLOR[r.u]}"></span>${r.u}</td>
-        <td>${r.ft} ft</td><td class="name">${r.dir}</td>
-        <td class="name">${r.d.slice(0, 10)}</td>
-        <td class="name">${r.ga ? '<span class="pill">go-ahead</span>' : ""}</td></tr>`).join("")
+    + VIEW.pa.filter((e) => e.k === "home_run" && e.d)
+        .sort((a, b) => b.d - a.d).slice(0, 25).map((e) => `<tr>
+        <td class="name">${e.p || ""}</td>
+        <td class="owner"><span class="dot" style="background:${COLOR[e.b]}"></span>${e.b}</td>
+        <td>${e.d} ft</td><td class="name">${e.dir || ""}</td>
+        <td class="name">${(DATA.games[e.g]?.d || "").slice(0, 10)}</td>
+        <td class="name">${e.ga ? '<span class="pill">go-ahead</span>' : ""}</td></tr>`).join("")
     + "</tbody>";
 }
 
@@ -864,8 +1056,9 @@ function showTab() {
 function renderAll() {
   // Each section is isolated: a failure in one used to kill every section that
   // ran after it, so the page came up with the scoreboard and nothing else.
+  rebuildView();
   const sections = {
-    board: renderBoard, whoami: renderWhoami, compare: renderCompare,
+    board: renderBoard, whoami: renderWhoami, window: renderWindow, compare: renderCompare,
     feats: renderFeats, form: renderForm, matchup: renderMatchup,
     hitters: () => { controls("bat"); renderBoardTable("bat"); },
     pitchers: () => { controls("pit"); renderBoardTable("pit"); },

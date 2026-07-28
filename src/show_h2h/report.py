@@ -35,11 +35,45 @@ def _rows(sql: str, params: tuple = ()) -> list[dict]:
     return [{k: _clean(v) for k, v in rec.items()} for rec in df.to_dict("records")]
 
 
+def _table(sql: str, game_index: dict[str, int], params: tuple = ()) -> dict:
+    """Encode a per-game result set compactly for the browser.
+
+    Every stat on the page can be filtered to "the last N games", which means
+    the browser needs the per-game rows rather than the totals — 2,000 batting
+    lines and 2,000 events. As a plain list of objects that's 618 KB, because
+    every key and every repeated string is spelled out on every row.
+
+    So: column names once, string columns replaced by an index into a small
+    dictionary, and game_uuid replaced by its position. Same data, about a fifth
+    the size, and the browser rebuilds objects in one pass.
+
+    The first column must be the game uuid.
+    """
+    df = db.query(sql, params)
+    cols = list(df.columns)
+    dicts: dict[str, list] = {}
+    data = []
+    for rec in df.to_dict("records"):
+        row = []
+        for col in cols:
+            value = _clean(rec[col])
+            if col == "g":
+                value = game_index.get(value, -1)
+            elif isinstance(value, str):
+                bucket = dicts.setdefault(col, [])
+                if value not in bucket:
+                    bucket.append(value)
+                value = bucket.index(value)
+            row.append(value)
+        data.append(row)
+    return {"cols": cols, "dicts": dicts, "data": data}
+
+
 def build() -> dict:
     me, them = config.MY_USERNAME, config.FRIEND_USERNAME
 
     games = _rows("""
-        SELECT g.display_date AS d, g.played_at AS ts,
+        SELECT g.game_uuid AS uuid, g.display_date AS d, g.played_at AS ts,
                g.home_username AS home, g.away_username AS away,
                g.home_runs AS hr, g.away_runs AS ar,
                g.home_hits AS hh, g.away_hits AS ah,
@@ -48,71 +82,44 @@ def build() -> dict:
         FROM games g WHERE g.is_h2h = 1 ORDER BY g.played_at
     """)
 
-    batting = _rows("""
-        SELECT username AS u, player_name AS p, games AS g, pa, ab, h, avg, obp, slg,
-               ops, iso, hr, rbi, runs AS r, doubles AS d2, triples AS d3, bb, so,
-               sb, cs, sb_pct AS sbp, babip, k_pct AS kp, bb_pct AS bbp
-        FROM v_batting_totals ORDER BY hr DESC
-    """)
-
-    pitching = _rows("""
-        SELECT username AS u, player_name AS p, games AS g, starts AS gs, innings AS ip,
-               outs, so, k_per_9 AS k9, bb_per_9 AS bb9, k_bb AS kbb, era, ra9, whip,
-               h, bb, er, wins AS w, losses AS l, saves AS sv, holds AS hld
-        FROM v_pitching_totals ORDER BY so DESC
-    """)
-
-    team = {}
-    for row in _rows("SELECT * FROM v_team_batting"):
-        team.setdefault(row["username"], {})["bat"] = row
-    for row in _rows("SELECT * FROM v_team_pitching"):
-        team.setdefault(row["username"], {})["pit"] = row
-
     coop = _rows("""
         SELECT display_date AS d, home_username AS home, away_username AS away,
                home_runs AS hr, away_runs AS ar, home_squad AS hs, away_squad AS asq
         FROM v_coop_games ORDER BY played_at DESC
     """)
 
-    # --- from the play-by-play (see playbyplay.py) ---
-    # Strikeouts keyed by both owners: "what he beats me with" and "what I beat
-    # him with" are separate questions off the same rows.
-    ko_grid = _rows("""
-        SELECT batting_username AS bat, pitching_username AS pit,
-               pitch_type AS type, location AS loc, SUM(n) AS n
-        FROM v_strikeouts WHERE pitch_type IS NOT NULL AND location IS NOT NULL
-        GROUP BY bat, pit, type, loc
-    """)
-    ko_timing = _rows("""
-        SELECT batting_username AS bat, timing, SUM(n) AS n
-        FROM v_strikeouts WHERE timing IS NOT NULL GROUP BY bat, timing
-    """)
-    homers = _rows("""
-        SELECT username AS u, batter AS p, distance AS ft, direction AS dir,
-               go_ahead AS ga, display_date AS d
-        FROM v_home_runs ORDER BY distance DESC
-    """)
-    perfect = _rows("""
-        SELECT username AS u, batter AS p, n, max_velo AS maxv, avg_velo AS avgv,
-               hr, hits, outs
-        FROM v_perfect_contact ORDER BY n DESC, maxv DESC
-    """)
-    perfect_hits = _rows("""
-        SELECT c.username AS u, c.batter AS p, c.exit_velo AS mph, c.result AS res,
-               c.outcome AS what, g.display_date AS d
-        FROM contact_events c JOIN games g ON g.game_uuid = c.game_uuid
-        WHERE g.is_h2h = 1 AND c.username IS NOT NULL
-        ORDER BY c.exit_velo DESC LIMIT 40
-    """)
-    clutch = _rows("""
-        SELECT batting_username AS u,
-               SUM(go_ahead) AS go_ahead,
-               SUM(critical)  AS critical,
-               SUM(kind = 'home_run' AND go_ahead = 1) AS go_ahead_hr
-        FROM pa_events e JOIN games g ON g.game_uuid = e.game_uuid
-        WHERE g.is_h2h = 1 AND batting_username IS NOT NULL
-        GROUP BY batting_username
-    """)
+    # Per-game rows, so the page can re-aggregate for any "last N games" window.
+    # Order matches `games` above, which is what the index refers to.
+    index = {g["uuid"]: i for i, g in enumerate(games)}
+    lines = {
+        "bat": _table("""
+            SELECT b.game_uuid AS g, b.username AS u, b.player_name AS p,
+                   b.ab, b.h, b.hr, b.rbi, b.r, b.bb, b.so, b.sb, b.cs,
+                   b.doubles AS d2, b.triples AS d3, b.hbp, b.sf, b.sh
+            FROM batting_lines b JOIN games x ON x.game_uuid = b.game_uuid
+            WHERE x.is_h2h = 1
+        """, index),
+        "pit": _table("""
+            SELECT p.game_uuid AS g, p.username AS u, p.player_name AS p2,
+                   p.outs AS o, p.so, p.bb, p.h, p.er, p.r,
+                   p.win AS w, p.loss AS l, p.save AS sv, p.hold AS hld, p.slot AS s
+            FROM pitching_lines p JOIN games x ON x.game_uuid = p.game_uuid
+            WHERE x.is_h2h = 1
+        """, index),
+        "pa": _table("""
+            SELECT e.game_uuid AS g, e.batting_username AS b, e.pitching_username AS t,
+                   e.batter AS p, e.kind AS k, e.pitch_type AS pt, e.location AS lo,
+                   e.timing AS ti, e.distance AS d, e.direction AS dir, e.go_ahead AS ga
+            FROM pa_events e JOIN games x ON x.game_uuid = e.game_uuid
+            WHERE x.is_h2h = 1
+        """, index),
+        "pp": _table("""
+            SELECT c.game_uuid AS g, c.username AS u, c.batter AS p,
+                   c.exit_velo AS v, c.result AS res, c.outcome AS what
+            FROM contact_events c JOIN games x ON x.game_uuid = c.game_uuid
+            WHERE x.is_h2h = 1 AND c.username IS NOT NULL
+        """, index),
+    }
 
     latest = db.query("SELECT MAX(played_at) d FROM games WHERE is_h2h = 1").iloc[0]["d"]
     return {
@@ -120,16 +127,8 @@ def build() -> dict:
         "generated": db.now_iso()[:10],
         "through": (str(latest) or "")[:10],
         "games": games,
-        "batting": batting,
-        "pitching": pitching,
-        "team": team,
         "coop": coop,
-        "koGrid": ko_grid,
-        "koTiming": ko_timing,
-        "homers": homers,
-        "perfect": perfect,
-        "perfectHits": perfect_hits,
-        "clutch": clutch,
+        "lines": lines,
     }
 
 
@@ -146,8 +145,8 @@ def main() -> int:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html)
     size = OUT.stat().st_size / 1024
-    print(f"Wrote {OUT} ({size:.0f} KB) — {len(data['games'])} games, "
-          f"{len(data['batting'])} batters, {len(data['pitching'])} pitchers.")
+    rows = sum(len(t["data"]) for t in data["lines"].values())
+    print(f"Wrote {OUT} ({size:.0f} KB) — {len(data['games'])} games, {rows} per-game rows.")
     return 0
 
 

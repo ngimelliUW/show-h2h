@@ -66,8 +66,16 @@ locally-modified file. Writing in place pinned the deploy to whatever database
 existed the first time the app ever ran — new code, stale tables, new pages
 silently empty.
 
-The **Which one are you?** control at the top switches whose side every number
-is written from, so both players get their own view of the rivalry.
+Two controls in the scoreboard drive the whole page:
+
+- **You are** switches whose side every number is written from.
+- **Window** limits every stat — record, leaderboards, pitch grid, contact
+  quality — to the last 10, 25 or 50 games. Playing-time qualifiers scale with
+  it, or a 50-AB minimum over ten games would qualify nobody.
+
+The window is why the page carries per-game rows rather than totals: the browser
+re-aggregates on every change. Those rows are column-encoded (names once,
+repeated strings as dictionary indexes), which is 173 KB instead of 618 KB.
 
 Nothing here is secret: the Show API needs no key, and `.env` holds only the two
 usernames and the platform (all of which have defaults in `config.py`, so the
