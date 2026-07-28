@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+
+# Local working data. show.db IS committed, so the hosted app has a seed to
+# start from and can pull forward from there; the WAL sidecars are not.
+data/*
+!data/show.db
+*.db-wal
+*.db-shm

@@ -1,0 +1,120 @@
+"""CLI: python -m show_h2h.ingest <command> [options]
+
+Examples:
+  uv run python -m show_h2h.ingest init-db
+  uv run python -m show_h2h.ingest history            # full backfill, both accounts
+  uv run python -m show_h2h.ingest box-scores         # box scores for H2H games
+  uv run python -m show_h2h.ingest box-scores --all   # ...for every game, not just H2H
+  uv run python -m show_h2h.ingest refresh            # incremental: new games only
+  uv run python -m show_h2h.ingest status             # what's in the database
+"""
+from __future__ import annotations
+
+import argparse
+
+from show_h2h import config, db
+
+
+def _status() -> None:
+    rows = db.query("""
+        SELECT
+          (SELECT COUNT(*) FROM games)                        AS games,
+          (SELECT COUNT(*) FROM games WHERE is_h2h = 1)       AS h2h,
+          (SELECT COUNT(*) FROM games WHERE is_coop = 1)      AS coop,
+          (SELECT COUNT(*) FROM games WHERE is_vs_cpu = 1)    AS vs_cpu,
+          (SELECT COUNT(*) FROM games WHERE has_box_score = 1) AS box_scores,
+          (SELECT COUNT(*) FROM batting_lines)                AS batting_lines,
+          (SELECT COUNT(*) FROM pitching_lines)               AS pitching_lines
+    """).iloc[0]
+    print(f"  games          {rows['games']}")
+    print(f"  head-to-head   {rows['h2h']}")
+    print(f"  co-op together {rows['coop']}")
+    print(f"  vs CPU         {rows['vs_cpu']}")
+    print(f"  box scores     {rows['box_scores']}")
+    print(f"  batting lines  {rows['batting_lines']}")
+    print(f"  pitching lines {rows['pitching_lines']}")
+
+    rec = db.query("SELECT * FROM v_h2h_record")
+    if not rec.empty and rec.iloc[0]["games"]:
+        r = rec.iloc[0]
+        print(f"\n  {config.MY_USERNAME} vs {config.FRIEND_USERNAME}: "
+              f"{int(r['wins'])}-{int(r['losses'])} ({r['win_pct']}), "
+              f"runs {int(r['runs_for'])}-{int(r['runs_against'])}")
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(prog="show_h2h.ingest")
+    sub = ap.add_subparsers(dest="command", required=True)
+
+    sub.add_parser("init-db", help="Create the database schema.")
+
+    h = sub.add_parser("history", help="Crawl game history for both accounts.")
+    h.add_argument("--incremental", action="store_true",
+                   help="Stop once a page contains only games we already have.")
+
+    b = sub.add_parser("box-scores", help="Fetch full box scores.")
+    b.add_argument("--scope", choices=("both-played", "h2h", "all"), default="both-played",
+                   help="both-played (default): every game we were both in, as opponents or "
+                        "teammates. h2h: rivalry games only. all: every game either of us "
+                        "played (several hundred more requests).")
+    b.add_argument("--limit", type=int, help="Cap how many to fetch this run.")
+
+    sub.add_parser("refresh", help="Incremental history + any missing H2H box scores.")
+    sub.add_parser("status", help="Show what's in the database.")
+
+    args = ap.parse_args(argv)
+
+    db.init_db()
+
+    if args.command == "init-db":
+        print(f"Initialized schema at {db.config.DB_PATH}")
+        return 0
+
+    if args.command == "history":
+        from show_h2h.importers import game_history
+
+        print(f"Crawling game history from {config.BASE_URL} ...")
+        counts = game_history.run_import(incremental=args.incremental)
+        for user, n in counts.items():
+            print(f"  {user}: {n} games")
+        _status()
+        return 0
+
+    if args.command == "box-scores":
+        from show_h2h.importers import game_log
+
+        print(f"Fetching box scores (scope: {args.scope}) ...")
+        res = game_log.run_import(scope=args.scope, limit=args.limit)
+        print(f"  imported {res['imported']}, failed {res['failed']}, pending {res['pending']}")
+        return 0 if res["failed"] == 0 else 1
+
+    if args.command == "refresh":
+        from show_h2h.importers import game_history, game_log
+
+        print("Refreshing ...")
+        ok = True
+        try:
+            counts = game_history.run_import(incremental=True)
+            print(f"  history: {sum(counts.values())} games seen "
+                  f"({', '.join(f'{u} {n}' for u, n in counts.items())})")
+        except Exception as e:  # keep going so one bad step doesn't block the other
+            ok = False
+            print(f"  history: FAILED — {e}")
+        try:
+            res = game_log.run_import(scope="both-played")
+            print(f"  box scores: {res['imported']} new, {res['failed']} failed")
+        except Exception as e:
+            ok = False
+            print(f"  box scores: FAILED — {e}")
+        _status()
+        return 0 if ok else 1
+
+    if args.command == "status":
+        _status()
+        return 0
+
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

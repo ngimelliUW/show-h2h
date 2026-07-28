@@ -1,0 +1,687 @@
+<title>The Rivalry — MLB The Show 26</title>
+<style>
+  :root {
+    --ground: #0C1522;
+    --ground-2: #16223A;
+    --paper: #EDF0F4;
+    --surface: #FFFFFF;
+    --text: #0F1826;
+    --muted: #5E6C80;
+    --line: #D6DDE6;
+    --line-soft: #E8ECF2;
+    --home: #1B6CA8;
+    --away: #C8102E;
+    --amber: #E9A825;
+    --on-ground: #E9EEF5;
+    --on-ground-muted: #8496AC;
+
+    --display: "Haettenschweiler", "Arial Narrow Bold", "Arial Narrow",
+               "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+            "Liberation Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0A111C;
+      --surface: #131D2C;
+      --text: #E7EDF5;
+      --muted: #94A3B8;
+      --line: #26344B;
+      --line-soft: #1C2739;
+      --home: #4A9FDC;
+      --away: #F05A6E;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0A111C;
+    --surface: #131D2C;
+    --text: #E7EDF5;
+    --muted: #94A3B8;
+    --line: #26344B;
+    --line-soft: #1C2739;
+    --home: #4A9FDC;
+    --away: #F05A6E;
+  }
+  :root[data-theme="light"] {
+    --paper: #EDF0F4;
+    --surface: #FFFFFF;
+    --text: #0F1826;
+    --muted: #5E6C80;
+    --line: #D6DDE6;
+    --line-soft: #E8ECF2;
+    --home: #1B6CA8;
+    --away: #C8102E;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px 72px; }
+
+  /* ---------- scoreboard ---------- */
+  .board {
+    background: var(--ground);
+    background-image: radial-gradient(ellipse at 50% -40%, var(--ground-2), var(--ground) 62%);
+    color: var(--on-ground);
+    border-bottom: 3px solid var(--amber);
+  }
+  .board-inner {
+    max-width: 1180px; margin: 0 auto; padding: 26px 20px 20px;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .eyebrow {
+    font-family: var(--display);
+    text-transform: uppercase; letter-spacing: .18em;
+    font-size: 12px; color: var(--on-ground-muted);
+  }
+  .score-row {
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 18px;
+  }
+  .team { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .team.right { align-items: flex-end; text-align: right; }
+  .team-name {
+    font-family: var(--display);
+    text-transform: uppercase; letter-spacing: .04em;
+    font-size: clamp(19px, 3.4vw, 34px); font-weight: 700; line-height: 1.05;
+    overflow-wrap: anywhere;
+  }
+  .team-tag {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--on-ground-muted);
+  }
+  .swatch { width: 26px; height: 4px; border-radius: 2px; display: block; }
+  .wins {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: clamp(40px, 9vw, 76px); font-weight: 700; line-height: 1;
+    letter-spacing: -.02em;
+  }
+  .wins.lead { color: var(--amber); }
+  .vs {
+    font-family: var(--display); text-transform: uppercase;
+    font-size: 13px; letter-spacing: .2em; color: var(--on-ground-muted);
+  }
+  .verdict {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .06em;
+    font-size: clamp(14px, 2.2vw, 19px); text-align: center;
+    color: var(--on-ground);
+  }
+  .board-meta {
+    display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid rgba(255,255,255,.1); padding-top: 14px;
+  }
+  .stat-strip { display: flex; flex-wrap: wrap; gap: 22px; }
+  .strip-item { display: flex; flex-direction: column; }
+  .strip-k {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .12em;
+    font-size: 10px; color: var(--on-ground-muted);
+  }
+  .strip-v {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 17px; font-weight: 600;
+  }
+
+  /* ---------- who am I ---------- */
+  .whoami { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .whoami-label {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .12em;
+    font-size: 10px; color: var(--on-ground-muted);
+  }
+  .seg { display: flex; border: 1px solid rgba(255,255,255,.22); border-radius: 999px; overflow: hidden; }
+  .seg button {
+    font-family: var(--body); font-size: 13px; font-weight: 600;
+    padding: 6px 15px; border: 0; cursor: pointer;
+    background: transparent; color: var(--on-ground-muted);
+  }
+  .seg button[aria-pressed="true"] { background: var(--on-ground); color: var(--ground); }
+  .seg button:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
+
+  /* ---------- tabs ---------- */
+  nav.tabs {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--paper); border-bottom: 1px solid var(--line);
+    display: flex; gap: 2px; overflow-x: auto; padding: 0 20px;
+    max-width: 1180px; margin: 0 auto;
+  }
+  nav.tabs button {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .1em;
+    font-size: 13px; background: none; border: 0; cursor: pointer;
+    color: var(--muted); padding: 13px 15px 11px; white-space: nowrap;
+    border-bottom: 3px solid transparent;
+  }
+  nav.tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--amber); }
+  nav.tabs button:focus-visible { outline: 2px solid var(--home); outline-offset: -4px; }
+
+  section[hidden] { display: none; }
+  h2 {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .07em;
+    font-size: 21px; margin: 34px 0 12px; text-wrap: balance;
+  }
+  p.note { color: var(--muted); font-size: 13.5px; max-width: 68ch; margin: 8px 0; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 6px; overflow: hidden;
+  }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+
+  /* ---------- tables ---------- */
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  thead th {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .07em;
+    font-size: 11px; color: var(--muted); font-weight: 700;
+    text-align: right; padding: 9px 10px; white-space: nowrap;
+    border-bottom: 1.5px solid var(--line); background: var(--surface);
+    position: sticky; top: 0;
+  }
+  thead th:nth-child(-n+3) { text-align: left; }
+  thead th.sortable { cursor: pointer; user-select: none; }
+  thead th.sortable:hover { color: var(--text); }
+  thead th[aria-sort] { color: var(--text); }
+  thead th[aria-sort]::after { content: " ▾"; color: var(--amber); }
+  thead th[aria-sort="ascending"]::after { content: " ▴"; color: var(--amber); }
+  tbody td {
+    padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--line-soft);
+    font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12.5px;
+  }
+  tbody td:nth-child(-n+3) { text-align: left; }
+  tbody td.name { font-family: var(--body); font-size: 13.5px; font-weight: 500; }
+  tbody tr:hover td { background: color-mix(in srgb, var(--amber) 8%, transparent); }
+  td.owner { font-family: var(--body); font-size: 12px; white-space: nowrap; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  td.hi { color: var(--amber); font-weight: 700; }
+
+  /* ---------- controls ---------- */
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end;
+    margin: 14px 0 10px;
+  }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .1em;
+    font-size: 10px; color: var(--muted);
+  }
+  select, input[type="text"], input[type="number"] {
+    font-family: var(--body); font-size: 14px; padding: 7px 10px;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--line); border-radius: 5px; min-width: 150px;
+  }
+  select:focus-visible, input:focus-visible { outline: 2px solid var(--home); outline-offset: 1px; }
+
+  /* ---------- comparison ---------- */
+  .cmp { width: 100%; border-collapse: collapse; }
+  .cmp td { padding: 8px 12px; border-bottom: 1px solid var(--line-soft); }
+  .cmp td.k {
+    font-family: var(--body); color: var(--muted); font-size: 13px;
+    text-align: center; width: 42%;
+  }
+  .cmp td.v {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 16px; width: 29%;
+  }
+  .cmp td.v.left { text-align: left; }
+  .cmp td.v.right { text-align: right; }
+  .cmp td.v.win { font-weight: 700; }
+  .cmp td.v.win.left { color: var(--home); }
+  .cmp td.v.win.right { color: var(--away); }
+  .card-head {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .1em;
+    font-size: 12px; color: var(--muted);
+    padding: 11px 12px; border-bottom: 1px solid var(--line);
+  }
+
+  /* ---------- feats ---------- */
+  .feats { display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 12px; }
+  .feat { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 13px 14px; }
+  .feat .k {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .1em;
+    font-size: 10px; color: var(--muted);
+  }
+  .feat .v {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 26px; font-weight: 700; line-height: 1.2;
+  }
+  .feat .s { font-size: 12px; color: var(--muted); }
+
+  .bars { display: flex; flex-direction: column; gap: 5px; padding: 12px; }
+  .bar-row { display: grid; grid-template-columns: 150px 1fr 46px; align-items: center; gap: 10px; }
+  .bar-name { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { background: var(--line-soft); border-radius: 3px; height: 15px; }
+  .bar-fill { height: 100%; border-radius: 3px; }
+  .bar-val {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 12.5px; text-align: right;
+  }
+
+  .pill {
+    display: inline-block; font-family: var(--body); font-size: 11px;
+    padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line);
+    color: var(--muted);
+  }
+  .w { color: var(--home); font-weight: 700; }
+  .l { color: var(--away); font-weight: 700; }
+  footer {
+    color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line);
+    margin-top: 40px; padding-top: 16px;
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="board">
+  <div class="board-inner">
+    <div class="eyebrow">MLB The Show 26 · Diamond Dynasty · head to head</div>
+    <div class="score-row">
+      <div class="team">
+        <span class="swatch" id="sw-a"></span>
+        <span class="team-name" id="name-a"></span>
+        <span class="team-tag" id="tag-a"></span>
+      </div>
+      <div style="text-align:center">
+        <div style="display:flex;align-items:center;gap:14px;justify-content:center">
+          <span class="wins" id="wins-a"></span>
+          <span class="vs">–</span>
+          <span class="wins" id="wins-b"></span>
+        </div>
+      </div>
+      <div class="team right">
+        <span class="swatch" id="sw-b"></span>
+        <span class="team-name" id="name-b"></span>
+        <span class="team-tag" id="tag-b"></span>
+      </div>
+    </div>
+    <div class="verdict" id="verdict"></div>
+    <div class="board-meta">
+      <div class="stat-strip" id="strip"></div>
+      <div class="whoami">
+        <span class="whoami-label">You are</span>
+        <div class="seg" id="whoami" role="group" aria-label="Choose which player you are"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="tabs" id="tabs" role="tablist"></nav>
+
+<div class="wrap">
+  <section id="tab-overview" role="tabpanel">
+    <h2>Head to head</h2>
+    <p class="note" id="cmp-note"></p>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-head">Batting — both rosters, all head-to-head games</div>
+        <table class="cmp"><tbody id="cmp-bat"></tbody></table>
+      </div>
+      <div class="card">
+        <div class="card-head">Pitching — both staffs, all head-to-head games</div>
+        <table class="cmp"><tbody id="cmp-pit"></tbody></table>
+      </div>
+    </div>
+
+    <h2>Feats</h2>
+    <div class="feats" id="feats"></div>
+
+    <h2>Form</h2>
+    <p class="note">Every game, oldest first. Each block is one result from your side.</p>
+    <div class="card" style="padding:14px"><div id="form"></div></div>
+  </section>
+
+  <section id="tab-hitters" role="tabpanel" hidden>
+    <h2>Hitters</h2>
+    <p class="note">
+      Career totals across head-to-head games. Sorting applies to every qualifying
+      player, not just the rows on screen — click any column header to re-rank.
+      The API reports batters by surname only and truncates long names, so two
+      cards of the same player merge and two players sharing a surname can't be
+      told apart.
+    </p>
+    <div class="controls" id="ctl-bat"></div>
+    <div class="card scroll"><table id="tbl-bat"></table></div>
+    <h2>Top 12</h2>
+    <div class="card"><div class="bars" id="bars-bat"></div></div>
+  </section>
+
+  <section id="tab-pitchers" role="tabpanel" hidden>
+    <h2>Pitchers</h2>
+    <p class="note">
+      IP is real baseball notation — 390.2 means 390⅔, not 390.7 — and ERA, K/9,
+      BB/9 and WHIP are all computed from outs recorded. RA/9 counts unearned runs
+      that ERA hides. K/BB is blank for a pitcher who has never walked anyone.
+    </p>
+    <div class="controls" id="ctl-pit"></div>
+    <div class="card scroll"><table id="tbl-pit"></table></div>
+    <h2>Top 12</h2>
+    <div class="card"><div class="bars" id="bars-pit"></div></div>
+  </section>
+
+  <section id="tab-games" role="tabpanel" hidden>
+    <h2>Every game</h2>
+    <p class="note" id="games-note"></p>
+    <div class="card scroll"><table id="tbl-games"></table></div>
+  </section>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const DATA = {"players":["LinguiniEater","TallThibaut48"],"generated":"2026-07-28","through":"2026-07-28","games":[{"d":"04/17/2026 04:16:48","ts":"2026-04-17T04:16:48","home":"LinguiniEater","away":"TallThibaut48","hr":14,"ar":8,"hh":18,"ah":13,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"04/18/2026 19:41:53","ts":"2026-04-18T19:41:53","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":6,"hh":5,"ah":11,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"04/18/2026 21:47:39","ts":"2026-04-18T21:47:39","home":"LinguiniEater","away":"TallThibaut48","hr":4,"ar":6,"hh":7,"ah":12,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"04/20/2026 01:20:17","ts":"2026-04-20T01:20:17","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":1,"hh":10,"ah":7,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"04/21/2026 03:59:56","ts":"2026-04-21T03:59:56","home":"LinguiniEater","away":"TallThibaut48","hr":8,"ar":6,"hh":10,"ah":14,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"04/22/2026 04:01:37","ts":"2026-04-22T04:01:37","home":"LinguiniEater","away":"TallThibaut48","hr":4,"ar":3,"hh":9,"ah":11,"hs":"SWEs","asq":"Worms","inn":11,"early":0,"win":"home"},{"d":"04/23/2026 04:25:52","ts":"2026-04-23T04:25:52","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":1,"hh":3,"ah":3,"hs":"SWEs","asq":"Worms","inn":5,"early":1,"win":"home"},{"d":"04/23/2026 05:15:15","ts":"2026-04-23T05:15:15","home":"LinguiniEater","away":"TallThibaut48","hr":5,"ar":4,"hh":10,"ah":10,"hs":"SWEs","asq":"Worms","inn":10,"early":0,"win":"home"},{"d":"04/25/2026 02:36:44","ts":"2026-04-25T02:36:44","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":1,"hh":6,"ah":11,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"04/25/2026 22:01:28","ts":"2026-04-25T22:01:28","home":"LinguiniEater","away":"TallThibaut48","hr":13,"ar":2,"hh":11,"ah":3,"hs":"SWEs","asq":"Worms","inn":7,"early":0,"win":"home"},{"d":"04/25/2026 23:26:25","ts":"2026-04-25T23:26:25","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":2,"hh":7,"ah":5,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"04/28/2026 03:50:45","ts":"2026-04-28T03:50:45","home":"LinguiniEater","away":"TallThibaut48","hr":7,"ar":1,"hh":11,"ah":4,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"04/28/2026 04:40:15","ts":"2026-04-28T04:40:15","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":2,"hh":6,"ah":1,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/02/2026 03:24:53","ts":"2026-05-02T03:24:53","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":5,"hh":5,"ah":8,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"05/02/2026 04:08:19","ts":"2026-05-02T04:08:19","home":"LinguiniEater","away":"TallThibaut48","hr":7,"ar":3,"hh":7,"ah":6,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/05/2026 04:38:32","ts":"2026-05-05T04:38:32","home":"LinguiniEater","away":"TallThibaut48","hr":5,"ar":1,"hh":9,"ah":5,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/06/2026 04:05:52","ts":"2026-05-06T04:05:52","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":4,"hh":7,"ah":6,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"05/06/2026 04:55:28","ts":"2026-05-06T04:55:28","home":"LinguiniEater","away":"TallThibaut48","hr":6,"ar":4,"hh":9,"ah":9,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/07/2026 04:45:45","ts":"2026-05-07T04:45:45","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":1,"hh":10,"ah":2,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/08/2026 03:56:45","ts":"2026-05-08T03:56:45","home":"LinguiniEater","away":"TallThibaut48","hr":5,"ar":0,"hh":7,"ah":3,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/09/2026 04:03:27","ts":"2026-05-09T04:03:27","home":"LinguiniEater","away":"TallThibaut48","hr":6,"ar":0,"hh":11,"ah":5,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/09/2026 05:06:58","ts":"2026-05-09T05:06:58","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":3,"hh":6,"ah":7,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"05/11/2026 02:19:19","ts":"2026-05-11T02:19:19","home":"LinguiniEater","away":"TallThibaut48","hr":10,"ar":0,"hh":14,"ah":1,"hs":"SWEs","asq":"Worms","inn":6,"early":0,"win":"home"},{"d":"05/11/2026 03:11:36","ts":"2026-05-11T03:11:36","home":"LinguiniEater","away":"TallThibaut48","hr":10,"ar":0,"hh":9,"ah":1,"hs":"SWEs","asq":"Worms","inn":5,"early":0,"win":"home"},{"d":"05/12/2026 04:30:04","ts":"2026-05-12T04:30:04","home":"LinguiniEater","away":"TallThibaut48","hr":7,"ar":1,"hh":8,"ah":4,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/13/2026 04:44:43","ts":"2026-05-13T04:44:43","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":0,"hh":4,"ah":4,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/14/2026 03:13:20","ts":"2026-05-14T03:13:20","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":0,"hh":7,"ah":6,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/14/2026 03:51:42","ts":"2026-05-14T03:51:42","home":"LinguiniEater","away":"TallThibaut48","hr":0,"ar":4,"hh":3,"ah":11,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"05/16/2026 02:34:27","ts":"2026-05-16T02:34:27","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":5,"hh":7,"ah":10,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"05/16/2026 03:17:25","ts":"2026-05-16T03:17:25","home":"LinguiniEater","away":"TallThibaut48","hr":7,"ar":4,"hh":9,"ah":6,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/16/2026 04:16:05","ts":"2026-05-16T04:16:05","home":"LinguiniEater","away":"TallThibaut48","hr":4,"ar":1,"hh":7,"ah":6,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/18/2026 03:44:08","ts":"2026-05-18T03:44:08","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":2,"hh":11,"ah":4,"hs":"SWEs","asq":"Worms","inn":10,"early":0,"win":"home"},{"d":"05/19/2026 03:17:26","ts":"2026-05-19T03:17:26","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":4,"hh":6,"ah":10,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"05/19/2026 03:54:49","ts":"2026-05-19T03:54:49","home":"LinguiniEater","away":"TallThibaut48","hr":0,"ar":2,"hh":3,"ah":6,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"05/20/2026 03:51:34","ts":"2026-05-20T03:51:34","home":"LinguiniEater","away":"TallThibaut48","hr":4,"ar":5,"hh":6,"ah":10,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"05/20/2026 04:35:24","ts":"2026-05-20T04:35:24","home":"LinguiniEater","away":"TallThibaut48","hr":8,"ar":3,"hh":11,"ah":5,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/21/2026 04:38:03","ts":"2026-05-21T04:38:03","home":"LinguiniEater","away":"TallThibaut48","hr":6,"ar":9,"hh":11,"ah":9,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"05/21/2026 05:19:39","ts":"2026-05-21T05:19:39","home":"LinguiniEater","away":"TallThibaut48","hr":6,"ar":4,"hh":10,"ah":8,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/22/2026 04:12:36","ts":"2026-05-22T04:12:36","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":0,"hh":5,"ah":5,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/22/2026 05:11:58","ts":"2026-05-22T05:11:58","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":0,"hh":4,"ah":4,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/23/2026 22:23:14","ts":"2026-05-23T22:23:14","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":1,"hh":6,"ah":10,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/23/2026 22:56:20","ts":"2026-05-23T22:56:20","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":1,"hh":7,"ah":8,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/24/2026 20:51:33","ts":"2026-05-24T20:51:33","home":"LinguiniEater","away":"TallThibaut48","hr":5,"ar":0,"hh":12,"ah":3,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/27/2026 03:23:53","ts":"2026-05-27T03:23:53","home":"LinguiniEater","away":"TallThibaut48","hr":5,"ar":0,"hh":7,"ah":6,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/27/2026 04:47:56","ts":"2026-05-27T04:47:56","home":"LinguiniEater","away":"TallThibaut48","hr":6,"ar":4,"hh":7,"ah":5,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/28/2026 04:32:44","ts":"2026-05-28T04:32:44","home":"LinguiniEater","away":"TallThibaut48","hr":4,"ar":5,"hh":9,"ah":10,"hs":"SWEs","asq":"Worms","inn":11,"early":0,"win":"away"},{"d":"05/29/2026 05:13:47","ts":"2026-05-29T05:13:47","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":3,"hh":6,"ah":6,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"05/30/2026 03:57:41","ts":"2026-05-30T03:57:41","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":4,"hh":7,"ah":12,"hs":"SWEs","asq":"Worms","inn":10,"early":0,"win":"away"},{"d":"05/30/2026 04:38:02","ts":"2026-05-30T04:38:02","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":1,"hh":3,"ah":4,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/31/2026 00:07:27","ts":"2026-05-31T00:07:27","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":1,"hh":9,"ah":11,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/31/2026 18:20:18","ts":"2026-05-31T18:20:18","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":2,"hh":6,"ah":6,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"05/31/2026 19:39:46","ts":"2026-05-31T19:39:46","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":0,"hh":4,"ah":4,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/03/2026 03:46:30","ts":"2026-06-03T03:46:30","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":4,"hh":2,"ah":9,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"06/03/2026 04:34:03","ts":"2026-06-03T04:34:03","home":"LinguiniEater","away":"TallThibaut48","hr":0,"ar":3,"hh":3,"ah":7,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"06/05/2026 03:38:55","ts":"2026-06-05T03:38:55","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":5,"hh":10,"ah":7,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"06/05/2026 04:28:53","ts":"2026-06-05T04:28:53","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":5,"hh":9,"ah":8,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"06/06/2026 03:37:04","ts":"2026-06-06T03:37:04","home":"LinguiniEater","away":"TallThibaut48","hr":4,"ar":2,"hh":9,"ah":11,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/06/2026 04:15:45","ts":"2026-06-06T04:15:45","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":2,"hh":2,"ah":3,"hs":"SWEs","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"06/09/2026 03:40:01","ts":"2026-06-09T03:40:01","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":1,"hh":5,"ah":5,"hs":"Gooners","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/09/2026 04:20:51","ts":"2026-06-09T04:20:51","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":4,"hh":3,"ah":9,"hs":"Gooners","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"06/10/2026 05:20:22","ts":"2026-06-10T05:20:22","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":0,"hh":8,"ah":5,"hs":"Gooners","asq":"Worms","inn":11,"early":0,"win":"home"},{"d":"06/12/2026 04:58:30","ts":"2026-06-12T04:58:30","home":"LinguiniEater","away":"TallThibaut48","hr":5,"ar":1,"hh":9,"ah":5,"hs":"Gooners","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/16/2026 03:31:31","ts":"2026-06-16T03:31:31","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":2,"hh":8,"ah":9,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/16/2026 04:08:43","ts":"2026-06-16T04:08:43","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":4,"hh":2,"ah":6,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"06/17/2026 04:12:42","ts":"2026-06-17T04:12:42","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":0,"hh":6,"ah":5,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/17/2026 04:53:40","ts":"2026-06-17T04:53:40","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":1,"hh":5,"ah":3,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/18/2026 05:20:36","ts":"2026-06-18T05:20:36","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":0,"hh":7,"ah":2,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/19/2026 03:37:21","ts":"2026-06-19T03:37:21","home":"LinguiniEater","away":"TallThibaut48","hr":0,"ar":3,"hh":2,"ah":7,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"06/19/2026 04:15:53","ts":"2026-06-19T04:15:53","home":"LinguiniEater","away":"TallThibaut48","hr":5,"ar":1,"hh":8,"ah":3,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/20/2026 21:48:41","ts":"2026-06-20T21:48:41","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":2,"hh":6,"ah":4,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/23/2026 04:00:18","ts":"2026-06-23T04:00:18","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":4,"hh":3,"ah":5,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"06/23/2026 04:36:08","ts":"2026-06-23T04:36:08","home":"LinguiniEater","away":"TallThibaut48","hr":6,"ar":1,"hh":7,"ah":6,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/24/2026 04:30:25","ts":"2026-06-24T04:30:25","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":1,"hh":7,"ah":1,"hs":"Birds","asq":"Worms","inn":11,"early":0,"win":"home"},{"d":"06/26/2026 04:10:37","ts":"2026-06-26T04:10:37","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":3,"hh":3,"ah":3,"hs":"Birds","asq":"Worms","inn":10,"early":0,"win":"away"},{"d":"06/26/2026 04:59:03","ts":"2026-06-26T04:59:03","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":1,"hh":5,"ah":5,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/27/2026 00:43:48","ts":"2026-06-27T00:43:48","home":"LinguiniEater","away":"TallThibaut48","hr":5,"ar":0,"hh":5,"ah":3,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/27/2026 01:28:05","ts":"2026-06-27T01:28:05","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":4,"hh":6,"ah":6,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"06/27/2026 05:28:18","ts":"2026-06-27T05:28:18","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":1,"hh":5,"ah":2,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/27/2026 06:06:36","ts":"2026-06-27T06:06:36","home":"LinguiniEater","away":"TallThibaut48","hr":4,"ar":2,"hh":5,"ah":6,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/27/2026 20:07:30","ts":"2026-06-27T20:07:30","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":3,"hh":4,"ah":7,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"06/27/2026 20:41:49","ts":"2026-06-27T20:41:49","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":0,"hh":5,"ah":3,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/28/2026 04:36:55","ts":"2026-06-28T04:36:55","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":0,"hh":4,"ah":1,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/30/2026 04:44:56","ts":"2026-06-30T04:44:56","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":0,"hh":5,"ah":5,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"06/30/2026 05:23:06","ts":"2026-06-30T05:23:06","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":0,"hh":4,"ah":3,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"07/01/2026 04:13:23","ts":"2026-07-01T04:13:23","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":0,"hh":3,"ah":1,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"07/07/2026 04:13:14","ts":"2026-07-07T04:13:14","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":0,"hh":4,"ah":3,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"07/07/2026 04:50:11","ts":"2026-07-07T04:50:11","home":"LinguiniEater","away":"TallThibaut48","hr":4,"ar":0,"hh":5,"ah":7,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"07/09/2026 04:51:44","ts":"2026-07-09T04:51:44","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":0,"hh":4,"ah":3,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"07/09/2026 05:40:39","ts":"2026-07-09T05:40:39","home":"LinguiniEater","away":"TallThibaut48","hr":8,"ar":0,"hh":7,"ah":2,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"07/10/2026 05:03:27","ts":"2026-07-10T05:03:27","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":2,"hh":6,"ah":7,"hs":"Birds","asq":"Worms","inn":10,"early":0,"win":"home"},{"d":"07/13/2026 03:19:30","ts":"2026-07-13T03:19:30","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":1,"hh":4,"ah":5,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"07/13/2026 03:54:27","ts":"2026-07-13T03:54:27","home":"LinguiniEater","away":"TallThibaut48","hr":4,"ar":2,"hh":6,"ah":7,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"07/14/2026 04:17:13","ts":"2026-07-14T04:17:13","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":4,"hh":4,"ah":9,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"07/14/2026 04:44:49","ts":"2026-07-14T04:44:49","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":1,"hh":4,"ah":4,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"07/16/2026 04:35:53","ts":"2026-07-16T04:35:53","home":"LinguiniEater","away":"TallThibaut48","hr":5,"ar":0,"hh":6,"ah":4,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"07/16/2026 05:23:32","ts":"2026-07-16T05:23:32","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":0,"hh":8,"ah":2,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"07/17/2026 04:06:10","ts":"2026-07-17T04:06:10","home":"LinguiniEater","away":"TallThibaut48","hr":0,"ar":1,"hh":2,"ah":5,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"07/17/2026 04:37:13","ts":"2026-07-17T04:37:13","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":1,"hh":3,"ah":2,"hs":"Birds","asq":"Worms","inn":5,"early":1,"win":"home"},{"d":"07/21/2026 04:04:29","ts":"2026-07-21T04:04:29","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":3,"hh":5,"ah":9,"hs":"Birds","asq":"Worms","inn":11,"early":0,"win":"away"},{"d":"07/21/2026 04:51:48","ts":"2026-07-21T04:51:48","home":"LinguiniEater","away":"TallThibaut48","hr":0,"ar":1,"hh":4,"ah":8,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"07/22/2026 04:26:35","ts":"2026-07-22T04:26:35","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":0,"hh":2,"ah":4,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"07/22/2026 05:10:36","ts":"2026-07-22T05:10:36","home":"LinguiniEater","away":"TallThibaut48","hr":0,"ar":0,"hh":1,"ah":4,"hs":"Birds","asq":"Worms","inn":10,"early":1,"win":"home"},{"d":"07/23/2026 04:53:45","ts":"2026-07-23T04:53:45","home":"LinguiniEater","away":"TallThibaut48","hr":0,"ar":4,"hh":4,"ah":6,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"07/24/2026 04:18:37","ts":"2026-07-24T04:18:37","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":0,"hh":7,"ah":6,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"07/24/2026 05:02:24","ts":"2026-07-24T05:02:24","home":"LinguiniEater","away":"TallThibaut48","hr":4,"ar":0,"hh":7,"ah":3,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"07/25/2026 04:00:01","ts":"2026-07-25T04:00:01","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":2,"hh":2,"ah":6,"hs":"Birds","asq":"Worms","inn":10,"early":0,"win":"away"},{"d":"07/25/2026 04:36:30","ts":"2026-07-25T04:36:30","home":"LinguiniEater","away":"TallThibaut48","hr":4,"ar":0,"hh":6,"ah":3,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"home"},{"d":"07/27/2026 03:55:22","ts":"2026-07-27T03:55:22","home":"LinguiniEater","away":"TallThibaut48","hr":1,"ar":2,"hh":5,"ah":10,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"07/27/2026 04:34:22","ts":"2026-07-27T04:34:22","home":"LinguiniEater","away":"TallThibaut48","hr":2,"ar":3,"hh":1,"ah":10,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"07/28/2026 03:16:08","ts":"2026-07-28T03:16:08","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":4,"hh":7,"ah":12,"hs":"Birds","asq":"Worms","inn":9,"early":0,"win":"away"},{"d":"07/28/2026 04:02:21","ts":"2026-07-28T04:02:21","home":"LinguiniEater","away":"TallThibaut48","hr":3,"ar":1,"hh":8,"ah":5,"hs":"Birds","asq":"Worms","inn":11,"early":0,"win":"home"}],"batting":[{"u":"LinguiniEater","p":"Harper","g":76,"pa":275,"ab":265,"h":55,"avg":0.208,"obp":0.226,"slg":0.415,"ops":0.641,"iso":0.208,"hr":14,"rbi":38,"r":24,"d2":11,"d3":1,"bb":6,"so":80,"sb":1,"cs":2,"sbp":0.333,"babip":0.237,"kp":29.1,"bbp":2.2},{"u":"LinguiniEater","p":"Crow-Armstrong","g":53,"pa":182,"ab":167,"h":27,"avg":0.162,"obp":0.2,"slg":0.341,"ops":0.541,"iso":0.18,"hr":8,"rbi":12,"r":17,"d2":4,"d3":1,"bb":3,"so":64,"sb":24,"cs":3,"sbp":0.889,"babip":0.2,"kp":35.2,"bbp":1.6},{"u":"LinguiniEater","p":"Bryant","g":35,"pa":123,"ab":117,"h":23,"avg":0.197,"obp":0.221,"slg":0.41,"ops":0.632,"iso":0.214,"hr":7,"rbi":14,"r":14,"d2":2,"d3":1,"bb":4,"so":25,"sb":5,"cs":2,"sbp":0.714,"babip":0.186,"kp":20.3,"bbp":3.3},{"u":"LinguiniEater","p":"Langeliers","g":32,"pa":118,"ab":114,"h":24,"avg":0.211,"obp":0.237,"slg":0.412,"ops":0.65,"iso":0.202,"hr":7,"rbi":13,"r":9,"d2":0,"d3":1,"bb":3,"so":18,"sb":0,"cs":0,"sbp":null,"babip":0.191,"kp":15.3,"bbp":2.5},{"u":"LinguiniEater","p":"Bellinger","g":32,"pa":99,"ab":99,"h":18,"avg":0.182,"obp":0.182,"slg":0.424,"ops":0.606,"iso":0.242,"hr":6,"rbi":13,"r":10,"d2":4,"d3":1,"bb":0,"so":34,"sb":1,"cs":0,"sbp":1.0,"babip":0.203,"kp":34.3,"bbp":0.0},{"u":"LinguiniEater","p":"Judge","g":31,"pa":111,"ab":100,"h":18,"avg":0.18,"obp":0.261,"slg":0.43,"ops":0.691,"iso":0.25,"hr":6,"rbi":7,"r":14,"d2":5,"d3":1,"bb":9,"so":38,"sb":1,"cs":0,"sbp":1.0,"babip":0.214,"kp":34.2,"bbp":8.1},{"u":"LinguiniEater","p":"Trout","g":21,"pa":78,"ab":71,"h":13,"avg":0.183,"obp":0.256,"slg":0.507,"ops":0.763,"iso":0.324,"hr":6,"rbi":7,"r":9,"d2":1,"d3":2,"bb":4,"so":32,"sb":4,"cs":1,"sbp":0.8,"babip":0.212,"kp":41.0,"bbp":5.1},{"u":"LinguiniEater","p":"Volpe","g":32,"pa":105,"ab":101,"h":19,"avg":0.188,"obp":0.212,"slg":0.386,"ops":0.598,"iso":0.198,"hr":6,"rbi":10,"r":11,"d2":2,"d3":0,"bb":3,"so":24,"sb":4,"cs":1,"sbp":0.8,"babip":0.183,"kp":22.9,"bbp":2.9},{"u":"LinguiniEater","p":"Emerson","g":34,"pa":111,"ab":103,"h":19,"avg":0.184,"obp":0.243,"slg":0.379,"ops":0.622,"iso":0.194,"hr":5,"rbi":9,"r":8,"d2":3,"d3":1,"bb":6,"so":25,"sb":2,"cs":0,"sbp":1.0,"babip":0.192,"kp":22.5,"bbp":5.4},{"u":"LinguiniEater","p":"Witt Jr.","g":32,"pa":127,"ab":119,"h":26,"avg":0.218,"obp":0.262,"slg":0.345,"ops":0.606,"iso":0.126,"hr":5,"rbi":10,"r":10,"d2":0,"d3":0,"bb":6,"so":24,"sb":24,"cs":4,"sbp":0.857,"babip":0.233,"kp":18.9,"bbp":4.7},{"u":"TallThibaut48","p":"Langeliers","g":33,"pa":112,"ab":112,"h":22,"avg":0.196,"obp":0.196,"slg":0.348,"ops":0.545,"iso":0.152,"hr":5,"rbi":7,"r":11,"d2":2,"d3":0,"bb":0,"so":23,"sb":0,"cs":0,"sbp":null,"babip":0.202,"kp":20.5,"bbp":0.0},{"u":"TallThibaut48","p":"Moniak","g":30,"pa":123,"ab":118,"h":27,"avg":0.229,"obp":0.252,"slg":0.415,"ops":0.667,"iso":0.186,"hr":5,"rbi":11,"r":12,"d2":7,"d3":0,"bb":3,"so":30,"sb":0,"cs":0,"sbp":null,"babip":0.262,"kp":24.4,"bbp":2.4},{"u":"TallThibaut48","p":"Sheets","g":13,"pa":49,"ab":47,"h":12,"avg":0.255,"obp":0.286,"slg":0.617,"ops":0.903,"iso":0.362,"hr":5,"rbi":9,"r":6,"d2":2,"d3":0,"bb":2,"so":14,"sb":0,"cs":0,"sbp":null,"babip":0.25,"kp":28.6,"bbp":4.1},{"u":"LinguiniEater","p":"Gelof","g":21,"pa":63,"ab":61,"h":16,"avg":0.262,"obp":0.286,"slg":0.525,"ops":0.81,"iso":0.262,"hr":4,"rbi":4,"r":8,"d2":2,"d3":1,"bb":2,"so":14,"sb":8,"cs":2,"sbp":0.8,"babip":0.279,"kp":22.2,"bbp":3.2},{"u":"LinguiniEater","p":"Hoerner","g":32,"pa":127,"ab":120,"h":34,"avg":0.283,"obp":0.304,"slg":0.45,"ops":0.754,"iso":0.167,"hr":4,"rbi":13,"r":18,"d2":6,"d3":1,"bb":4,"so":11,"sb":9,"cs":3,"sbp":0.75,"babip":0.283,"kp":8.7,"bbp":3.1},{"u":"LinguiniEater","p":"Keith","g":21,"pa":68,"ab":66,"h":10,"avg":0.152,"obp":0.176,"slg":0.379,"ops":0.555,"iso":0.227,"hr":4,"rbi":5,"r":4,"d2":3,"d3":0,"bb":2,"so":24,"sb":1,"cs":1,"sbp":0.5,"babip":0.158,"kp":35.3,"bbp":2.9},{"u":"LinguiniEater","p":"Kurtz","g":32,"pa":119,"ab":111,"h":22,"avg":0.198,"obp":0.237,"slg":0.351,"ops":0.589,"iso":0.153,"hr":4,"rbi":7,"r":7,"d2":3,"d3":1,"bb":3,"so":33,"sb":0,"cs":0,"sbp":null,"babip":0.24,"kp":27.7,"bbp":2.5},{"u":"LinguiniEater","p":"Rice","g":30,"pa":116,"ab":109,"h":21,"avg":0.193,"obp":0.233,"slg":0.349,"ops":0.581,"iso":0.156,"hr":4,"rbi":11,"r":8,"d2":5,"d3":0,"bb":5,"so":22,"sb":1,"cs":1,"sbp":0.5,"babip":0.202,"kp":19.0,"bbp":4.3},{"u":"TallThibaut48","p":"McGonigle","g":24,"pa":86,"ab":82,"h":18,"avg":0.22,"obp":0.256,"slg":0.415,"ops":0.67,"iso":0.195,"hr":4,"rbi":8,"r":6,"d2":2,"d3":1,"bb":1,"so":12,"sb":0,"cs":0,"sbp":null,"babip":0.212,"kp":14.0,"bbp":1.2},{"u":"TallThibaut48","p":"Song","g":45,"pa":178,"ab":176,"h":43,"avg":0.244,"obp":0.253,"slg":0.364,"ops":0.616,"iso":0.119,"hr":4,"rbi":11,"r":11,"d2":7,"d3":1,"bb":1,"so":32,"sb":0,"cs":1,"sbp":0.0,"babip":0.279,"kp":18.0,"bbp":0.6},{"u":"TallThibaut48","p":"Trout","g":37,"pa":152,"ab":147,"h":22,"avg":0.15,"obp":0.178,"slg":0.238,"ops":0.416,"iso":0.088,"hr":4,"rbi":11,"r":7,"d2":1,"d3":0,"bb":3,"so":39,"sb":0,"cs":0,"sbp":null,"babip":0.173,"kp":25.7,"bbp":2.0},{"u":"TallThibaut48","p":"Volpe","g":37,"pa":137,"ab":136,"h":28,"avg":0.206,"obp":0.212,"slg":0.346,"ops":0.557,"iso":0.14,"hr":4,"rbi":13,"r":10,"d2":7,"d3":0,"bb":1,"so":30,"sb":0,"cs":0,"sbp":null,"babip":0.235,"kp":21.9,"bbp":0.7},{"u":"LinguiniEater","p":"Adell","g":12,"pa":45,"ab":41,"h":11,"avg":0.268,"obp":0.333,"slg":0.561,"ops":0.894,"iso":0.293,"hr":3,"rbi":11,"r":9,"d2":3,"d3":0,"bb":3,"so":5,"sb":0,"cs":1,"sbp":0.0,"babip":0.242,"kp":11.1,"bbp":6.7},{"u":"LinguiniEater","p":"Anderson","g":23,"pa":74,"ab":68,"h":17,"avg":0.25,"obp":0.292,"slg":0.412,"ops":0.703,"iso":0.162,"hr":3,"rbi":8,"r":12,"d2":2,"d3":0,"bb":4,"so":10,"sb":2,"cs":1,"sbp":0.667,"babip":0.255,"kp":13.5,"bbp":5.4},{"u":"LinguiniEater","p":"Benge","g":16,"pa":49,"ab":47,"h":14,"avg":0.298,"obp":0.306,"slg":0.596,"ops":0.902,"iso":0.298,"hr":3,"rbi":11,"r":9,"d2":5,"d3":0,"bb":1,"so":6,"sb":2,"cs":2,"sbp":0.5,"babip":0.282,"kp":12.2,"bbp":2.0},{"u":"LinguiniEater","p":"Chisholm Jr.","g":21,"pa":70,"ab":64,"h":5,"avg":0.078,"obp":0.143,"slg":0.219,"ops":0.362,"iso":0.141,"hr":3,"rbi":8,"r":5,"d2":0,"d3":0,"bb":3,"so":30,"sb":6,"cs":0,"sbp":1.0,"babip":0.063,"kp":42.9,"bbp":4.3},{"u":"LinguiniEater","p":"Cholowsky","g":21,"pa":80,"ab":75,"h":9,"avg":0.12,"obp":0.175,"slg":0.267,"ops":0.442,"iso":0.147,"hr":3,"rbi":3,"r":3,"d2":2,"d3":0,"bb":2,"so":34,"sb":0,"cs":1,"sbp":0.0,"babip":0.158,"kp":42.5,"bbp":2.5},{"u":"LinguiniEater","p":"Delgado","g":30,"pa":105,"ab":101,"h":19,"avg":0.188,"obp":0.219,"slg":0.317,"ops":0.536,"iso":0.129,"hr":3,"rbi":7,"r":7,"d2":4,"d3":0,"bb":2,"so":16,"sb":0,"cs":0,"sbp":null,"babip":0.195,"kp":15.2,"bbp":1.9},{"u":"LinguiniEater","p":"Ewing","g":11,"pa":45,"ab":42,"h":9,"avg":0.214,"obp":0.214,"slg":0.476,"ops":0.69,"iso":0.262,"hr":3,"rbi":5,"r":4,"d2":0,"d3":1,"bb":0,"so":4,"sb":5,"cs":2,"sbp":0.714,"babip":0.171,"kp":8.9,"bbp":0.0},{"u":"LinguiniEater","p":"Fernandez","g":23,"pa":84,"ab":76,"h":21,"avg":0.276,"obp":0.333,"slg":0.461,"ops":0.794,"iso":0.184,"hr":3,"rbi":12,"r":7,"d2":5,"d3":0,"bb":4,"so":13,"sb":8,"cs":1,"sbp":0.889,"babip":0.295,"kp":15.5,"bbp":4.8},{"u":"LinguiniEater","p":"Keys","g":21,"pa":67,"ab":67,"h":9,"avg":0.134,"obp":0.134,"slg":0.299,"ops":0.433,"iso":0.164,"hr":3,"rbi":3,"r":3,"d2":2,"d3":0,"bb":0,"so":31,"sb":0,"cs":0,"sbp":null,"babip":0.182,"kp":46.3,"bbp":0.0},{"u":"LinguiniEater","p":"McGonigle","g":22,"pa":80,"ab":78,"h":23,"avg":0.295,"obp":0.291,"slg":0.462,"ops":0.753,"iso":0.167,"hr":3,"rbi":18,"r":13,"d2":4,"d3":0,"bb":0,"so":17,"sb":2,"cs":2,"sbp":0.5,"babip":0.339,"kp":21.3,"bbp":0.0},{"u":"LinguiniEater","p":"Piazza","g":32,"pa":107,"ab":105,"h":16,"avg":0.152,"obp":0.168,"slg":0.267,"ops":0.435,"iso":0.114,"hr":3,"rbi":8,"r":9,"d2":3,"d3":0,"bb":2,"so":14,"sb":0,"cs":2,"sbp":0.0,"babip":0.148,"kp":13.1,"bbp":1.9},{"u":"LinguiniEater","p":"Raleigh","g":16,"pa":61,"ab":52,"h":11,"avg":0.212,"obp":0.281,"slg":0.423,"ops":0.704,"iso":0.212,"hr":3,"rbi":6,"r":12,"d2":2,"d3":0,"bb":3,"so":12,"sb":0,"cs":1,"sbp":0.0,"babip":0.216,"kp":19.7,"bbp":4.9},{"u":"LinguiniEater","p":"Wiemer","g":17,"pa":59,"ab":53,"h":17,"avg":0.321,"obp":0.362,"slg":0.547,"ops":0.909,"iso":0.226,"hr":3,"rbi":10,"r":10,"d2":3,"d3":0,"bb":3,"so":9,"sb":6,"cs":4,"sbp":0.6,"babip":0.333,"kp":15.3,"bbp":5.1},{"u":"TallThibaut48","p":"Brito","g":26,"pa":98,"ab":93,"h":18,"avg":0.194,"obp":0.235,"slg":0.323,"ops":0.557,"iso":0.129,"hr":3,"rbi":3,"r":7,"d2":3,"d3":0,"bb":5,"so":15,"sb":0,"cs":0,"sbp":null,"babip":0.2,"kp":15.3,"bbp":5.1},{"u":"TallThibaut48","p":"Emerson","g":19,"pa":67,"ab":64,"h":18,"avg":0.281,"obp":0.299,"slg":0.453,"ops":0.752,"iso":0.172,"hr":3,"rbi":4,"r":7,"d2":2,"d3":0,"bb":2,"so":6,"sb":1,"cs":0,"sbp":1.0,"babip":0.268,"kp":9.0,"bbp":3.0},{"u":"TallThibaut48","p":"Grisham","g":24,"pa":92,"ab":91,"h":15,"avg":0.165,"obp":0.174,"slg":0.286,"ops":0.46,"iso":0.121,"hr":3,"rbi":3,"r":4,"d2":2,"d3":0,"bb":1,"so":27,"sb":0,"cs":0,"sbp":null,"babip":0.197,"kp":29.3,"bbp":1.1},{"u":"TallThibaut48","p":"Leonard","g":24,"pa":88,"ab":87,"h":15,"avg":0.172,"obp":0.182,"slg":0.299,"ops":0.481,"iso":0.126,"hr":3,"rbi":3,"r":7,"d2":2,"d3":0,"bb":1,"so":17,"sb":0,"cs":0,"sbp":null,"babip":0.179,"kp":19.3,"bbp":1.1},{"u":"TallThibaut48","p":"McGee","g":45,"pa":178,"ab":173,"h":31,"avg":0.179,"obp":0.197,"slg":0.26,"ops":0.457,"iso":0.081,"hr":3,"rbi":9,"r":13,"d2":3,"d3":1,"bb":3,"so":28,"sb":0,"cs":0,"sbp":null,"babip":0.196,"kp":15.7,"bbp":1.7},{"u":"LinguiniEater","p":"Baldwin","g":21,"pa":65,"ab":63,"h":5,"avg":0.079,"obp":0.108,"slg":0.19,"ops":0.298,"iso":0.111,"hr":2,"rbi":2,"r":3,"d2":1,"d3":0,"bb":1,"so":30,"sb":0,"cs":0,"sbp":null,"babip":0.097,"kp":46.2,"bbp":1.5},{"u":"LinguiniEater","p":"Brito","g":25,"pa":91,"ab":87,"h":20,"avg":0.23,"obp":0.253,"slg":0.333,"ops":0.586,"iso":0.103,"hr":2,"rbi":13,"r":11,"d2":3,"d3":0,"bb":1,"so":8,"sb":2,"cs":1,"sbp":0.667,"babip":0.231,"kp":8.8,"bbp":1.1},{"u":"LinguiniEater","p":"Clement","g":21,"pa":82,"ab":78,"h":12,"avg":0.154,"obp":0.173,"slg":0.231,"ops":0.404,"iso":0.077,"hr":2,"rbi":8,"r":3,"d2":0,"d3":0,"bb":2,"so":12,"sb":2,"cs":1,"sbp":0.667,"babip":0.154,"kp":14.6,"bbp":2.4},{"u":"LinguiniEater","p":"Muncy","g":3,"pa":13,"ab":13,"h":6,"avg":0.462,"obp":0.462,"slg":1.0,"ops":1.462,"iso":0.538,"hr":2,"rbi":6,"r":3,"d2":1,"d3":0,"bb":0,"so":1,"sb":0,"cs":0,"sbp":null,"babip":0.4,"kp":7.7,"bbp":0.0},{"u":"TallThibaut48","p":"Adell","g":35,"pa":121,"ab":119,"h":18,"avg":0.151,"obp":0.165,"slg":0.227,"ops":0.392,"iso":0.076,"hr":2,"rbi":6,"r":7,"d2":3,"d3":0,"bb":2,"so":44,"sb":0,"cs":0,"sbp":null,"babip":0.219,"kp":36.4,"bbp":1.7},{"u":"TallThibaut48","p":"Chisholm Jr.","g":21,"pa":82,"ab":79,"h":8,"avg":0.101,"obp":0.134,"slg":0.19,"ops":0.324,"iso":0.089,"hr":2,"rbi":3,"r":6,"d2":1,"d3":0,"bb":1,"so":45,"sb":2,"cs":1,"sbp":0.667,"babip":0.188,"kp":54.9,"bbp":1.2},{"u":"TallThibaut48","p":"DeLauter","g":14,"pa":45,"ab":41,"h":9,"avg":0.22,"obp":0.289,"slg":0.366,"ops":0.655,"iso":0.146,"hr":2,"rbi":4,"r":4,"d2":0,"d3":0,"bb":4,"so":11,"sb":0,"cs":0,"sbp":null,"babip":0.25,"kp":24.4,"bbp":8.9},{"u":"TallThibaut48","p":"Diaz","g":30,"pa":112,"ab":110,"h":19,"avg":0.173,"obp":0.179,"slg":0.255,"ops":0.433,"iso":0.082,"hr":2,"rbi":5,"r":7,"d2":3,"d3":0,"bb":1,"so":7,"sb":0,"cs":0,"sbp":null,"babip":0.167,"kp":6.3,"bbp":0.9},{"u":"TallThibaut48","p":"Dingler","g":13,"pa":47,"ab":46,"h":11,"avg":0.239,"obp":0.255,"slg":0.37,"ops":0.625,"iso":0.13,"hr":2,"rbi":4,"r":3,"d2":0,"d3":0,"bb":1,"so":10,"sb":0,"cs":0,"sbp":null,"babip":0.265,"kp":21.3,"bbp":2.1},{"u":"TallThibaut48","p":"Griffin","g":12,"pa":46,"ab":46,"h":7,"avg":0.152,"obp":0.152,"slg":0.283,"ops":0.435,"iso":0.13,"hr":2,"rbi":2,"r":2,"d2":0,"d3":0,"bb":0,"so":14,"sb":3,"cs":1,"sbp":0.75,"babip":0.167,"kp":30.4,"bbp":0.0},{"u":"TallThibaut48","p":"House","g":22,"pa":78,"ab":74,"h":14,"avg":0.189,"obp":0.231,"slg":0.311,"ops":0.542,"iso":0.122,"hr":2,"rbi":6,"r":5,"d2":3,"d3":0,"bb":3,"so":7,"sb":0,"cs":0,"sbp":null,"babip":0.185,"kp":9.0,"bbp":3.8},{"u":"TallThibaut48","p":"Jensen","g":13,"pa":47,"ab":46,"h":6,"avg":0.13,"obp":0.149,"slg":0.283,"ops":0.432,"iso":0.152,"hr":2,"rbi":3,"r":2,"d2":1,"d3":0,"bb":1,"so":23,"sb":0,"cs":0,"sbp":null,"babip":0.19,"kp":48.9,"bbp":2.1},{"u":"TallThibaut48","p":"Judge","g":14,"pa":48,"ab":46,"h":8,"avg":0.174,"obp":0.208,"slg":0.348,"ops":0.556,"iso":0.174,"hr":2,"rbi":3,"r":5,"d2":0,"d3":1,"bb":2,"so":18,"sb":0,"cs":0,"sbp":null,"babip":0.231,"kp":37.5,"bbp":4.2},{"u":"TallThibaut48","p":"Kurtz","g":14,"pa":48,"ab":48,"h":7,"avg":0.146,"obp":0.146,"slg":0.292,"ops":0.438,"iso":0.146,"hr":2,"rbi":3,"r":2,"d2":1,"d3":0,"bb":0,"so":21,"sb":0,"cs":0,"sbp":null,"babip":0.2,"kp":43.8,"bbp":0.0},{"u":"TallThibaut48","p":"Seager","g":14,"pa":47,"ab":47,"h":9,"avg":0.191,"obp":0.191,"slg":0.362,"ops":0.553,"iso":0.17,"hr":2,"rbi":3,"r":2,"d2":2,"d3":0,"bb":0,"so":21,"sb":0,"cs":0,"sbp":null,"babip":0.292,"kp":44.7,"bbp":0.0},{"u":"TallThibaut48","p":"Wiemer","g":6,"pa":26,"ab":26,"h":6,"avg":0.231,"obp":0.231,"slg":0.5,"ops":0.731,"iso":0.269,"hr":2,"rbi":4,"r":3,"d2":1,"d3":0,"bb":0,"so":6,"sb":0,"cs":0,"sbp":null,"babip":0.222,"kp":23.1,"bbp":0.0},{"u":"LinguiniEater","p":"Conforto","g":2,"pa":7,"ab":7,"h":2,"avg":0.286,"obp":0.286,"slg":0.714,"ops":1.0,"iso":0.429,"hr":1,"rbi":1,"r":2,"d2":0,"d3":0,"bb":0,"so":0,"sb":0,"cs":0,"sbp":null,"babip":0.167,"kp":0.0,"bbp":0.0},{"u":"LinguiniEater","p":"Ferrell","g":7,"pa":26,"ab":25,"h":7,"avg":0.28,"obp":0.308,"slg":0.48,"ops":0.788,"iso":0.2,"hr":1,"rbi":5,"r":3,"d2":0,"d3":1,"bb":0,"so":1,"sb":0,"cs":1,"sbp":0.0,"babip":0.261,"kp":3.8,"bbp":0.0},{"u":"LinguiniEater","p":"Marsee","g":7,"pa":21,"ab":19,"h":8,"avg":0.421,"obp":0.476,"slg":0.632,"ops":1.108,"iso":0.211,"hr":1,"rbi":2,"r":5,"d2":1,"d3":0,"bb":2,"so":1,"sb":4,"cs":1,"sbp":0.8,"babip":0.412,"kp":4.8,"bbp":9.5},{"u":"LinguiniEater","p":"Moniak","g":25,"pa":89,"ab":86,"h":17,"avg":0.198,"obp":0.225,"slg":0.291,"ops":0.515,"iso":0.093,"hr":1,"rbi":2,"r":5,"d2":5,"d3":0,"bb":3,"so":9,"sb":0,"cs":1,"sbp":0.0,"babip":0.211,"kp":10.1,"bbp":3.4},{"u":"LinguiniEater","p":"Robinson","g":16,"pa":65,"ab":61,"h":18,"avg":0.295,"obp":0.313,"slg":0.41,"ops":0.722,"iso":0.115,"hr":1,"rbi":10,"r":9,"d2":4,"d3":0,"bb":1,"so":4,"sb":13,"cs":0,"sbp":1.0,"babip":0.298,"kp":6.2,"bbp":1.5},{"u":"LinguiniEater","p":"Sheets","g":23,"pa":89,"ab":82,"h":21,"avg":0.256,"obp":0.307,"slg":0.341,"ops":0.648,"iso":0.085,"hr":1,"rbi":7,"r":13,"d2":4,"d3":0,"bb":3,"so":14,"sb":3,"cs":0,"sbp":1.0,"babip":0.299,"kp":15.7,"bbp":3.4},{"u":"TallThibaut48","p":"Bellinger","g":20,"pa":69,"ab":69,"h":7,"avg":0.101,"obp":0.101,"slg":0.159,"ops":0.261,"iso":0.058,"hr":1,"rbi":3,"r":1,"d2":1,"d3":0,"bb":0,"so":34,"sb":0,"cs":0,"sbp":null,"babip":0.176,"kp":49.3,"bbp":0.0},{"u":"TallThibaut48","p":"Carrigg","g":10,"pa":37,"ab":37,"h":4,"avg":0.108,"obp":0.108,"slg":0.216,"ops":0.324,"iso":0.108,"hr":1,"rbi":1,"r":1,"d2":1,"d3":0,"bb":0,"so":21,"sb":0,"cs":1,"sbp":0.0,"babip":0.2,"kp":56.8,"bbp":0.0},{"u":"TallThibaut48","p":"Carroll","g":3,"pa":9,"ab":9,"h":3,"avg":0.333,"obp":0.333,"slg":0.667,"ops":1.0,"iso":0.333,"hr":1,"rbi":1,"r":1,"d2":0,"d3":0,"bb":0,"so":4,"sb":0,"cs":1,"sbp":0.0,"babip":0.5,"kp":44.4,"bbp":0.0},{"u":"TallThibaut48","p":"Crow-Armstrong","g":8,"pa":31,"ab":31,"h":5,"avg":0.161,"obp":0.161,"slg":0.258,"ops":0.419,"iso":0.097,"hr":1,"rbi":1,"r":4,"d2":0,"d3":0,"bb":0,"so":14,"sb":3,"cs":0,"sbp":1.0,"babip":0.25,"kp":45.2,"bbp":0.0},{"u":"TallThibaut48","p":"Eldridge","g":12,"pa":34,"ab":34,"h":4,"avg":0.118,"obp":0.118,"slg":0.206,"ops":0.324,"iso":0.088,"hr":1,"rbi":2,"r":1,"d2":0,"d3":0,"bb":0,"so":12,"sb":0,"cs":0,"sbp":null,"babip":0.143,"kp":35.3,"bbp":0.0},{"u":"TallThibaut48","p":"Fernandez","g":14,"pa":48,"ab":47,"h":6,"avg":0.128,"obp":0.146,"slg":0.191,"ops":0.337,"iso":0.064,"hr":1,"rbi":2,"r":2,"d2":0,"d3":0,"bb":1,"so":26,"sb":0,"cs":0,"sbp":null,"babip":0.25,"kp":54.2,"bbp":2.1},{"u":"TallThibaut48","p":"Flewelling","g":7,"pa":29,"ab":29,"h":4,"avg":0.138,"obp":0.138,"slg":0.241,"ops":0.379,"iso":0.103,"hr":1,"rbi":3,"r":1,"d2":0,"d3":0,"bb":0,"so":12,"sb":0,"cs":0,"sbp":null,"babip":0.188,"kp":41.4,"bbp":0.0},{"u":"TallThibaut48","p":"Gehrig","g":8,"pa":25,"ab":24,"h":5,"avg":0.208,"obp":0.2,"slg":0.375,"ops":0.575,"iso":0.167,"hr":1,"rbi":3,"r":2,"d2":1,"d3":0,"bb":0,"so":3,"sb":0,"cs":0,"sbp":null,"babip":0.19,"kp":12.0,"bbp":0.0},{"u":"TallThibaut48","p":"Gimenez","g":3,"pa":11,"ab":10,"h":2,"avg":0.2,"obp":0.273,"slg":0.5,"ops":0.773,"iso":0.3,"hr":1,"rbi":1,"r":2,"d2":0,"d3":0,"bb":0,"so":2,"sb":0,"cs":0,"sbp":null,"babip":0.143,"kp":18.2,"bbp":0.0},{"u":"TallThibaut48","p":"Jung","g":13,"pa":43,"ab":40,"h":6,"avg":0.15,"obp":0.209,"slg":0.25,"ops":0.459,"iso":0.1,"hr":1,"rbi":3,"r":3,"d2":1,"d3":0,"bb":3,"so":6,"sb":0,"cs":0,"sbp":null,"babip":0.152,"kp":14.0,"bbp":7.0},{"u":"TallThibaut48","p":"Piazza","g":20,"pa":72,"ab":71,"h":13,"avg":0.183,"obp":0.194,"slg":0.254,"ops":0.448,"iso":0.07,"hr":1,"rbi":5,"r":4,"d2":2,"d3":0,"bb":1,"so":17,"sb":0,"cs":0,"sbp":null,"babip":0.226,"kp":23.6,"bbp":1.4},{"u":"TallThibaut48","p":"Pujols","g":5,"pa":23,"ab":23,"h":5,"avg":0.217,"obp":0.217,"slg":0.348,"ops":0.565,"iso":0.13,"hr":1,"rbi":3,"r":2,"d2":0,"d3":0,"bb":0,"so":6,"sb":0,"cs":0,"sbp":null,"babip":0.25,"kp":26.1,"bbp":0.0},{"u":"TallThibaut48","p":"Rafaela","g":5,"pa":21,"ab":21,"h":5,"avg":0.238,"obp":0.238,"slg":0.429,"ops":0.667,"iso":0.19,"hr":1,"rbi":1,"r":1,"d2":1,"d3":0,"bb":0,"so":3,"sb":0,"cs":1,"sbp":0.0,"babip":0.235,"kp":14.3,"bbp":0.0},{"u":"TallThibaut48","p":"Rocchio","g":17,"pa":63,"ab":62,"h":8,"avg":0.129,"obp":0.143,"slg":0.177,"ops":0.32,"iso":0.048,"hr":1,"rbi":3,"r":1,"d2":0,"d3":0,"bb":1,"so":14,"sb":0,"cs":0,"sbp":null,"babip":0.149,"kp":22.2,"bbp":1.6},{"u":"TallThibaut48","p":"Schmitt","g":3,"pa":12,"ab":11,"h":3,"avg":0.273,"obp":0.333,"slg":0.545,"ops":0.879,"iso":0.273,"hr":1,"rbi":1,"r":1,"d2":0,"d3":0,"bb":1,"so":7,"sb":0,"cs":0,"sbp":null,"babip":0.667,"kp":58.3,"bbp":8.3},{"u":"TallThibaut48","p":"Tucker","g":10,"pa":30,"ab":30,"h":3,"avg":0.1,"obp":0.1,"slg":0.233,"ops":0.333,"iso":0.133,"hr":1,"rbi":1,"r":1,"d2":1,"d3":0,"bb":0,"so":13,"sb":0,"cs":0,"sbp":null,"babip":0.125,"kp":43.3,"bbp":0.0},{"u":"TallThibaut48","p":"Valenzuela","g":10,"pa":32,"ab":31,"h":7,"avg":0.226,"obp":0.25,"slg":0.387,"ops":0.637,"iso":0.161,"hr":1,"rbi":2,"r":2,"d2":2,"d3":0,"bb":1,"so":3,"sb":0,"cs":0,"sbp":null,"babip":0.222,"kp":9.4,"bbp":3.1},{"u":"TallThibaut48","p":"Walker","g":13,"pa":46,"ab":45,"h":6,"avg":0.133,"obp":0.152,"slg":0.222,"ops":0.374,"iso":0.089,"hr":1,"rbi":3,"r":2,"d2":1,"d3":0,"bb":1,"so":17,"sb":0,"cs":0,"sbp":null,"babip":0.185,"kp":37.0,"bbp":2.2},{"u":"LinguiniEater","p":"1-Emerson","g":1,"pa":0,"ab":0,"h":0,"avg":null,"obp":null,"slg":null,"ops":null,"iso":null,"hr":0,"rbi":0,"r":0,"d2":0,"d3":0,"bb":0,"so":0,"sb":0,"cs":1,"sbp":0.0,"babip":null,"kp":null,"bbp":null},{"u":"LinguiniEater","p":"1-Ewing","g":2,"pa":0,"ab":0,"h":0,"avg":null,"obp":null,"slg":null,"ops":null,"iso":null,"hr":0,"rbi":0,"r":1,"d2":0,"d3":0,"bb":0,"so":0,"sb":0,"cs":1,"sbp":0.0,"babip":null,"kp":null,"bbp":null},{"u":"LinguiniEater","p":"1-Witt Jr.","g":2,"pa":0,"ab":0,"h":0,"avg":null,"obp":null,"slg":null,"ops":null,"iso":null,"hr":0,"rbi":0,"r":0,"d2":0,"d3":0,"bb":0,"so":0,"sb":0,"cs":2,"sbp":0.0,"babip":null,"kp":null,"bbp":null},{"u":"LinguiniEater","p":"Bregman","g":1,"pa":3,"ab":3,"h":0,"avg":0.0,"obp":0.0,"slg":0.0,"ops":0.0,"iso":0.0,"hr":0,"rbi":0,"r":0,"d2":0,"d3":0,"bb":0,"so":0,"sb":0,"cs":0,"sbp":null,"babip":0.0,"kp":0.0,"bbp":0.0},{"u":"LinguiniEater","p":"Collins","g":3,"pa":11,"ab":11,"h":3,"avg":0.273,"obp":0.273,"slg":0.273,"ops":0.545,"iso":0.0,"hr":0,"rbi":1,"r":1,"d2":0,"d3":0,"bb":0,"so":0,"sb":1,"cs":0,"sbp":1.0,"babip":0.273,"kp":0.0,"bbp":0.0},{"u":"LinguiniEater","p":"De La Cruz","g":1,"pa":4,"ab":4,"h":2,"avg":0.5,"obp":0.5,"slg":0.75,"ops":1.25,"iso":0.25,"hr":0,"rbi":1,"r":2,"d2":1,"d3":0,"bb":0,"so":0,"sb":2,"cs":0,"sbp":1.0,"babip":0.5,"kp":0.0,"bbp":0.0},{"u":"LinguiniEater","p":"Eaton","g":1,"pa":5,"ab":4,"h":0,"avg":0.0,"obp":0.0,"slg":0.0,"ops":0.0,"iso":0.0,"hr":0,"rbi":0,"r":0,"d2":0,"d3":0,"bb":0,"so":0,"sb":0,"cs":0,"sbp":null,"babip":0.0,"kp":0.0,"bbp":0.0},{"u":"LinguiniEater","p":"Grisham","g":2,"pa":7,"ab":7,"h":3,"avg":0.429,"obp":0.429,"slg":0.429,"ops":0.857,"iso":0.0,"hr":0,"rbi":1,"r":1,"d2":0,"d3":0,"bb":0,"so":1,"sb":0,"cs":0,"sbp":null,"babip":0.5,"kp":14.3,"bbp":0.0},{"u":"LinguiniEater","p":"Kim","g":2,"pa":8,"ab":7,"h":2,"avg":0.286,"obp":0.375,"slg":0.429,"ops":0.804,"iso":0.143,"hr":0,"rbi":0,"r":2,"d2":1,"d3":0,"bb":1,"so":0,"sb":5,"cs":1,"sbp":0.833,"babip":0.286,"kp":0.0,"bbp":12.5},{"u":"LinguiniEater","p":"Kirk","g":2,"pa":7,"ab":7,"h":1,"avg":0.143,"obp":0.143,"slg":0.143,"ops":0.286,"iso":0.0,"hr":0,"rbi":0,"r":0,"d2":0,"d3":0,"bb":0,"so":1,"sb":0,"cs":0,"sbp":null,"babip":0.167,"kp":14.3,"bbp":0.0},{"u":"LinguiniEater","p":"McAdoo","g":11,"pa":34,"ab":29,"h":6,"avg":0.207,"obp":0.303,"slg":0.207,"ops":0.51,"iso":0.0,"hr":0,"rbi":1,"r":1,"d2":0,"d3":0,"bb":3,"so":5,"sb":2,"cs":0,"sbp":1.0,"babip":0.25,"kp":14.7,"bbp":8.8},{"u":"LinguiniEater","p":"McGee","g":32,"pa":132,"ab":126,"h":26,"avg":0.206,"obp":0.225,"slg":0.254,"ops":0.479,"iso":0.048,"hr":0,"rbi":3,"r":15,"d2":2,"d3":2,"bb":1,"so":14,"sb":19,"cs":3,"sbp":0.864,"babip":0.232,"kp":10.6,"bbp":0.8},{"u":"LinguiniEater","p":"Meyers","g":2,"pa":9,"ab":9,"h":2,"avg":0.222,"obp":0.222,"slg":0.444,"ops":0.667,"iso":0.222,"hr":0,"rbi":1,"r":1,"d2":2,"d3":0,"bb":0,"so":0,"sb":1,"cs":0,"sbp":1.0,"babip":0.222,"kp":0.0,"bbp":0.0},{"u":"LinguiniEater","p":"Nimmo","g":3,"pa":11,"ab":11,"h":2,"avg":0.182,"obp":0.182,"slg":0.182,"ops":0.364,"iso":0.0,"hr":0,"rbi":2,"r":2,"d2":0,"d3":0,"bb":0,"so":0,"sb":0,"cs":0,"sbp":null,"babip":0.182,"kp":0.0,"bbp":0.0},{"u":"LinguiniEater","p":"Perez","g":3,"pa":11,"ab":11,"h":2,"avg":0.182,"obp":0.182,"slg":0.182,"ops":0.364,"iso":0.0,"hr":0,"rbi":1,"r":1,"d2":0,"d3":0,"bb":0,"so":2,"sb":0,"cs":0,"sbp":null,"babip":0.222,"kp":18.2,"bbp":0.0},{"u":"LinguiniEater","p":"Pujols","g":3,"pa":13,"ab":12,"h":5,"avg":0.417,"obp":0.417,"slg":0.417,"ops":0.833,"iso":0.0,"hr":0,"rbi":4,"r":2,"d2":0,"d3":0,"bb":0,"so":1,"sb":0,"cs":0,"sbp":null,"babip":0.455,"kp":7.7,"bbp":0.0},{"u":"LinguiniEater","p":"Romo","g":2,"pa":7,"ab":7,"h":1,"avg":0.143,"obp":0.143,"slg":0.143,"ops":0.286,"iso":0.0,"hr":0,"rbi":0,"r":0,"d2":0,"d3":0,"bb":0,"so":3,"sb":0,"cs":0,"sbp":null,"babip":0.25,"kp":42.9,"bbp":0.0},{"u":"LinguiniEater","p":"Urias","g":2,"pa":8,"ab":8,"h":2,"avg":0.25,"obp":0.25,"slg":0.25,"ops":0.5,"iso":0.0,"hr":0,"rbi":2,"r":2,"d2":0,"d3":0,"bb":0,"so":3,"sb":0,"cs":0,"sbp":null,"babip":0.4,"kp":37.5,"bbp":0.0},{"u":"TallThibaut48","p":"1-McGee","g":1,"pa":0,"ab":0,"h":0,"avg":null,"obp":null,"slg":null,"ops":null,"iso":null,"hr":0,"rbi":0,"r":0,"d2":0,"d3":0,"bb":0,"so":0,"sb":0,"cs":1,"sbp":0.0,"babip":null,"kp":null,"bbp":null},{"u":"TallThibaut48","p":"Anderson","g":29,"pa":113,"ab":111,"h":15,"avg":0.135,"obp":0.15,"slg":0.171,"ops":0.322,"iso":0.036,"hr":0,"rbi":2,"r":3,"d2":4,"d3":0,"bb":1,"so":33,"sb":0,"cs":0,"sbp":null,"babip":0.192,"kp":29.2,"bbp":0.9},{"u":"TallThibaut48","p":"Baldwin","g":1,"pa":3,"ab":3,"h":0,"avg":0.0,"obp":0.0,"slg":0.0,"ops":0.0,"iso":0.0,"hr":0,"rbi":0,"r":0,"d2":0,"d3":0,"bb":0,"so":1,"sb":0,"cs":0,"sbp":null,"babip":0.0,"kp":33.3,"bbp":0.0},{"u":"TallThibaut48","p":"Beck","g":2,"pa":10,"ab":10,"h":3,"avg":0.3,"obp":0.3,"slg":0.3,"ops":0.6,"iso":0.0,"hr":0,"rbi":1,"r":1,"d2":0,"d3":0,"bb":0,"so":3,"sb":0,"cs":0,"sbp":null,"babip":0.429,"kp":30.0,"bbp":0.0},{"u":"TallThibaut48","p":"Benge","g":3,"pa":10,"ab":10,"h":3,"avg":0.3,"obp":0.3,"slg":0.4,"ops":0.7,"iso":0.1,"hr":0,"rbi":0,"r":1,"d2":1,"d3":0,"bb":0,"so":1,"sb":0,"cs":0,"sbp":null,"babip":0.333,"kp":10.0,"bbp":0.0},{"u":"TallThibaut48","p":"Brock","g":8,"pa":32,"ab":32,"h":8,"avg":0.25,"obp":0.25,"slg":0.344,"ops":0.594,"iso":0.094,"hr":0,"rbi":3,"r":3,"d2":1,"d3":1,"bb":0,"so":5,"sb":3,"cs":0,"sbp":1.0,"babip":0.296,"kp":15.6,"bbp":0.0},{"u":"TallThibaut48","p":"Cauley","g":2,"pa":8,"ab":8,"h":2,"avg":0.25,"obp":0.25,"slg":0.375,"ops":0.625,"iso":0.125,"hr":0,"rbi":1,"r":0,"d2":1,"d3":0,"bb":0,"so":1,"sb":1,"cs":0,"sbp":1.0,"babip":0.286,"kp":12.5,"bbp":0.0},{"u":"TallThibaut48","p":"Clement","g":4,"pa":12,"ab":12,"h":0,"avg":0.0,"obp":0.0,"slg":0.0,"ops":0.0,"iso":0.0,"hr":0,"rbi":0,"r":0,"d2":0,"d3":0,"bb":0,"so":2,"sb":0,"cs":0,"sbp":null,"babip":0.0,"kp":16.7,"bbp":0.0},{"u":"TallThibaut48","p":"Contreras","g":8,"pa":25,"ab":25,"h":7,"avg":0.28,"obp":0.28,"slg":0.32,"ops":0.6,"iso":0.04,"hr":0,"rbi":1,"r":1,"d2":1,"d3":0,"bb":0,"so":4,"sb":0,"cs":0,"sbp":null,"babip":0.333,"kp":16.0,"bbp":0.0},{"u":"TallThibaut48","p":"Devers","g":24,"pa":86,"ab":82,"h":10,"avg":0.122,"obp":0.163,"slg":0.146,"ops":0.309,"iso":0.024,"hr":0,"rbi":0,"r":2,"d2":2,"d3":0,"bb":3,"so":28,"sb":0,"cs":0,"sbp":null,"babip":0.185,"kp":32.6,"bbp":3.5},{"u":"TallThibaut48","p":"Ewing","g":3,"pa":9,"ab":8,"h":1,"avg":0.125,"obp":0.222,"slg":0.125,"ops":0.347,"iso":0.0,"hr":0,"rbi":0,"r":1,"d2":0,"d3":0,"bb":1,"so":3,"sb":0,"cs":0,"sbp":null,"babip":0.2,"kp":33.3,"bbp":11.1},{"u":"TallThibaut48","p":"Ferrell","g":13,"pa":39,"ab":39,"h":4,"avg":0.103,"obp":0.103,"slg":0.128,"ops":0.231,"iso":0.026,"hr":0,"rbi":3,"r":0,"d2":1,"d3":0,"bb":0,"so":8,"sb":0,"cs":0,"sbp":null,"babip":0.129,"kp":20.5,"bbp":0.0},{"u":"TallThibaut48","p":"Fortes","g":1,"pa":4,"ab":4,"h":2,"avg":0.5,"obp":0.5,"slg":0.5,"ops":1.0,"iso":0.0,"hr":0,"rbi":0,"r":1,"d2":0,"d3":0,"bb":0,"so":0,"sb":0,"cs":0,"sbp":null,"babip":0.5,"kp":0.0,"bbp":0.0},{"u":"TallThibaut48","p":"Freeman","g":7,"pa":24,"ab":24,"h":1,"avg":0.042,"obp":0.042,"slg":0.042,"ops":0.083,"iso":0.0,"hr":0,"rbi":0,"r":0,"d2":0,"d3":0,"bb":0,"so":14,"sb":0,"cs":0,"sbp":null,"babip":0.1,"kp":58.3,"bbp":0.0},{"u":"TallThibaut48","p":"Gelof","g":26,"pa":97,"ab":93,"h":22,"avg":0.237,"obp":0.268,"slg":0.258,"ops":0.526,"iso":0.022,"hr":0,"rbi":2,"r":4,"d2":2,"d3":0,"bb":3,"so":23,"sb":0,"cs":0,"sbp":null,"babip":0.314,"kp":23.7,"bbp":3.1},{"u":"TallThibaut48","p":"Headley","g":10,"pa":35,"ab":34,"h":3,"avg":0.088,"obp":0.086,"slg":0.088,"ops":0.174,"iso":0.0,"hr":0,"rbi":1,"r":0,"d2":0,"d3":0,"bb":0,"so":14,"sb":0,"cs":0,"sbp":null,"babip":0.143,"kp":40.0,"bbp":0.0},{"u":"TallThibaut48","p":"Helman","g":8,"pa":33,"ab":31,"h":6,"avg":0.194,"obp":0.242,"slg":0.226,"ops":0.468,"iso":0.032,"hr":0,"rbi":3,"r":3,"d2":1,"d3":0,"bb":2,"so":9,"sb":0,"cs":0,"sbp":null,"babip":0.273,"kp":27.3,"bbp":6.1},{"u":"TallThibaut48","p":"Kim","g":8,"pa":36,"ab":36,"h":17,"avg":0.472,"obp":0.472,"slg":0.556,"ops":1.028,"iso":0.083,"hr":0,"rbi":6,"r":4,"d2":3,"d3":0,"bb":0,"so":2,"sb":0,"cs":0,"sbp":null,"babip":0.5,"kp":5.6,"bbp":0.0},{"u":"TallThibaut48","p":"Lara","g":6,"pa":26,"ab":25,"h":5,"avg":0.2,"obp":0.231,"slg":0.24,"ops":0.471,"iso":0.04,"hr":0,"rbi":0,"r":4,"d2":1,"d3":0,"bb":1,"so":3,"sb":1,"cs":0,"sbp":1.0,"babip":0.227,"kp":11.5,"bbp":3.8},{"u":"TallThibaut48","p":"Montgomery","g":9,"pa":29,"ab":29,"h":2,"avg":0.069,"obp":0.069,"slg":0.138,"ops":0.207,"iso":0.069,"hr":0,"rbi":1,"r":0,"d2":2,"d3":0,"bb":0,"so":14,"sb":0,"cs":0,"sbp":null,"babip":0.133,"kp":48.3,"bbp":0.0},{"u":"TallThibaut48","p":"Ortiz","g":2,"pa":7,"ab":7,"h":2,"avg":0.286,"obp":0.286,"slg":0.429,"ops":0.714,"iso":0.143,"hr":0,"rbi":1,"r":0,"d2":1,"d3":0,"bb":0,"so":2,"sb":0,"cs":0,"sbp":null,"babip":0.4,"kp":28.6,"bbp":0.0},{"u":"TallThibaut48","p":"Pages","g":13,"pa":57,"ab":56,"h":13,"avg":0.232,"obp":0.246,"slg":0.286,"ops":0.531,"iso":0.054,"hr":0,"rbi":3,"r":1,"d2":3,"d3":0,"bb":1,"so":18,"sb":0,"cs":0,"sbp":null,"babip":0.342,"kp":31.6,"bbp":1.8},{"u":"TallThibaut48","p":"Quero","g":4,"pa":16,"ab":16,"h":7,"avg":0.438,"obp":0.438,"slg":0.5,"ops":0.938,"iso":0.063,"hr":0,"rbi":2,"r":2,"d2":1,"d3":0,"bb":0,"so":3,"sb":0,"cs":0,"sbp":null,"babip":0.538,"kp":18.8,"bbp":0.0},{"u":"TallThibaut48","p":"Rengifo","g":5,"pa":21,"ab":20,"h":3,"avg":0.15,"obp":0.19,"slg":0.15,"ops":0.34,"iso":0.0,"hr":0,"rbi":2,"r":3,"d2":0,"d3":0,"bb":0,"so":1,"sb":0,"cs":0,"sbp":null,"babip":0.158,"kp":4.8,"bbp":0.0},{"u":"TallThibaut48","p":"Rice","g":3,"pa":10,"ab":9,"h":0,"avg":0.0,"obp":0.1,"slg":0.0,"ops":0.1,"iso":0.0,"hr":0,"rbi":0,"r":0,"d2":0,"d3":0,"bb":1,"so":6,"sb":0,"cs":0,"sbp":null,"babip":0.0,"kp":60.0,"bbp":10.0},{"u":"TallThibaut48","p":"Robinson","g":1,"pa":3,"ab":3,"h":0,"avg":0.0,"obp":0.0,"slg":0.0,"ops":0.0,"iso":0.0,"hr":0,"rbi":0,"r":0,"d2":0,"d3":0,"bb":0,"so":2,"sb":0,"cs":0,"sbp":null,"babip":0.0,"kp":66.7,"bbp":0.0},{"u":"TallThibaut48","p":"Rushing","g":1,"pa":3,"ab":3,"h":0,"avg":0.0,"obp":0.0,"slg":0.0,"ops":0.0,"iso":0.0,"hr":0,"rbi":0,"r":0,"d2":0,"d3":0,"bb":0,"so":3,"sb":0,"cs":0,"sbp":null,"babip":null,"kp":100.0,"bbp":0.0},{"u":"TallThibaut48","p":"Sandberg","g":4,"pa":15,"ab":15,"h":1,"avg":0.067,"obp":0.067,"slg":0.067,"ops":0.133,"iso":0.0,"hr":0,"rbi":0,"r":0,"d2":0,"d3":0,"bb":0,"so":5,"sb":0,"cs":0,"sbp":null,"babip":0.1,"kp":33.3,"bbp":0.0},{"u":"TallThibaut48","p":"Schanuel","g":4,"pa":17,"ab":17,"h":7,"avg":0.412,"obp":0.412,"slg":0.529,"ops":0.941,"iso":0.118,"hr":0,"rbi":1,"r":2,"d2":2,"d3":0,"bb":0,"so":1,"sb":0,"cs":0,"sbp":null,"babip":0.438,"kp":5.9,"bbp":0.0},{"u":"TallThibaut48","p":"Sosa","g":1,"pa":4,"ab":4,"h":2,"avg":0.5,"obp":0.5,"slg":0.5,"ops":1.0,"iso":0.0,"hr":0,"rbi":1,"r":0,"d2":0,"d3":0,"bb":0,"so":1,"sb":0,"cs":0,"sbp":null,"babip":0.667,"kp":25.0,"bbp":0.0},{"u":"TallThibaut48","p":"Taylor","g":26,"pa":86,"ab":84,"h":18,"avg":0.214,"obp":0.233,"slg":0.274,"ops":0.506,"iso":0.06,"hr":0,"rbi":1,"r":3,"d2":5,"d3":0,"bb":0,"so":10,"sb":6,"cs":0,"sbp":1.0,"babip":0.243,"kp":11.6,"bbp":0.0},{"u":"TallThibaut48","p":"Teel","g":3,"pa":10,"ab":9,"h":3,"avg":0.333,"obp":0.4,"slg":0.556,"ops":0.956,"iso":0.222,"hr":0,"rbi":3,"r":1,"d2":2,"d3":0,"bb":0,"so":0,"sb":0,"cs":0,"sbp":null,"babip":0.333,"kp":0.0,"bbp":0.0},{"u":"TallThibaut48","p":"Torres","g":3,"pa":9,"ab":9,"h":1,"avg":0.111,"obp":0.111,"slg":0.222,"ops":0.333,"iso":0.111,"hr":0,"rbi":0,"r":0,"d2":1,"d3":0,"bb":0,"so":6,"sb":0,"cs":0,"sbp":null,"babip":0.333,"kp":66.7,"bbp":0.0},{"u":"TallThibaut48","p":"Vargas","g":1,"pa":1,"ab":1,"h":0,"avg":0.0,"obp":0.0,"slg":0.0,"ops":0.0,"iso":0.0,"hr":0,"rbi":0,"r":0,"d2":0,"d3":0,"bb":0,"so":0,"sb":0,"cs":0,"sbp":null,"babip":0.0,"kp":0.0,"bbp":0.0},{"u":"TallThibaut48","p":"Witt Jr.","g":7,"pa":24,"ab":24,"h":5,"avg":0.208,"obp":0.208,"slg":0.25,"ops":0.458,"iso":0.042,"hr":0,"rbi":1,"r":1,"d2":1,"d3":0,"bb":0,"so":9,"sb":2,"cs":1,"sbp":0.667,"babip":0.333,"kp":37.5,"bbp":0.0},{"u":"TallThibaut48","p":"Wood","g":10,"pa":31,"ab":31,"h":2,"avg":0.065,"obp":0.065,"slg":0.065,"ops":0.129,"iso":0.0,"hr":0,"rbi":1,"r":0,"d2":0,"d3":0,"bb":0,"so":14,"sb":0,"cs":0,"sbp":null,"babip":0.118,"kp":45.2,"bbp":0.0}],"pitching":[{"u":"LinguiniEater","p":"Misiorowsk...","g":47,"gs":47,"ip":390.2,"outs":1172,"so":477,"k9":10.99,"bb9":0.28,"kbb":39.75,"era":1.22,"ra9":1.31,"whip":0.596,"h":221,"bb":12,"er":53,"w":32,"l":9,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Greene","g":19,"gs":19,"ip":127.0,"outs":381,"so":184,"k9":13.04,"bb9":0.92,"kbb":14.15,"era":2.48,"ra9":2.69,"whip":0.583,"h":61,"bb":13,"er":35,"w":2,"l":11,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Messick","g":28,"gs":28,"ip":225.0,"outs":675,"so":141,"k9":5.64,"bb9":0.56,"kbb":10.07,"era":1.88,"ra9":2.0,"whip":0.72,"h":148,"bb":14,"er":47,"w":17,"l":7,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Soroka","g":15,"gs":15,"ip":103.1,"outs":310,"so":103,"k9":8.97,"bb9":0.78,"kbb":11.44,"era":2.7,"ra9":3.05,"whip":0.9,"h":84,"bb":9,"er":31,"w":9,"l":2,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Messick","g":25,"gs":25,"ip":165.2,"outs":497,"so":103,"k9":5.6,"bb9":1.25,"kbb":4.48,"era":3.69,"ra9":3.86,"whip":0.942,"h":133,"bb":23,"er":68,"w":9,"l":12,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Fingers","g":28,"gs":0,"ip":48.1,"outs":145,"so":68,"k9":12.66,"bb9":1.12,"kbb":11.33,"era":1.86,"ra9":1.86,"whip":0.641,"h":25,"bb":6,"er":10,"w":5,"l":1,"sv":4,"hld":2},{"u":"TallThibaut48","p":"R. Ray","g":9,"gs":9,"ip":61.2,"outs":185,"so":47,"k9":6.86,"bb9":1.75,"kbb":3.92,"era":2.34,"ra9":2.34,"whip":0.746,"h":34,"bb":12,"er":16,"w":3,"l":4,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Fingers","g":15,"gs":0,"ip":27.2,"outs":83,"so":38,"k9":12.36,"bb9":0.65,"kbb":19.0,"era":1.63,"ra9":2.93,"whip":0.904,"h":23,"bb":2,"er":5,"w":1,"l":2,"sv":5,"hld":0},{"u":"LinguiniEater","p":"Ashcraft","g":6,"gs":6,"ip":49.0,"outs":147,"so":37,"k9":6.8,"bb9":0.73,"kbb":9.25,"era":1.47,"ra9":1.47,"whip":0.694,"h":30,"bb":4,"er":8,"w":2,"l":2,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Verlander","g":6,"gs":6,"ip":38.2,"outs":116,"so":36,"k9":8.38,"bb9":0.93,"kbb":9.0,"era":2.09,"ra9":2.09,"whip":0.647,"h":21,"bb":4,"er":9,"w":1,"l":2,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Duran","g":18,"gs":0,"ip":28.0,"outs":84,"so":34,"k9":10.93,"bb9":0.0,"kbb":null,"era":0.64,"ra9":0.96,"whip":0.536,"h":15,"bb":0,"er":2,"w":3,"l":2,"sv":6,"hld":0},{"u":"TallThibaut48","p":"Duran","g":28,"gs":0,"ip":53.1,"outs":160,"so":33,"k9":5.57,"bb9":0.17,"kbb":33.0,"era":2.87,"ra9":3.38,"whip":0.994,"h":52,"bb":1,"er":17,"w":2,"l":7,"sv":3,"hld":2},{"u":"LinguiniEater","p":"Burke","g":10,"gs":10,"ip":69.0,"outs":207,"so":31,"k9":4.04,"bb9":0.91,"kbb":4.43,"era":3.39,"ra9":3.39,"whip":1.0,"h":62,"bb":7,"er":26,"w":3,"l":5,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Williams","g":14,"gs":0,"ip":27.0,"outs":81,"so":26,"k9":8.67,"bb9":0.67,"kbb":13.0,"era":0.67,"ra9":0.67,"whip":0.519,"h":12,"bb":2,"er":2,"w":3,"l":0,"sv":2,"hld":1},{"u":"TallThibaut48","p":"Wrobleski","g":9,"gs":9,"ip":59.0,"outs":177,"so":26,"k9":3.97,"bb9":0.76,"kbb":5.2,"era":3.81,"ra9":3.81,"whip":0.966,"h":52,"bb":5,"er":25,"w":2,"l":4,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Williams","g":19,"gs":0,"ip":29.2,"outs":89,"so":25,"k9":7.58,"bb9":0.91,"kbb":8.33,"era":1.52,"ra9":1.52,"whip":0.775,"h":20,"bb":3,"er":5,"w":0,"l":1,"sv":5,"hld":0},{"u":"TallThibaut48","p":"J. Latz","g":8,"gs":0,"ip":15.0,"outs":45,"so":20,"k9":12.0,"bb9":0.6,"kbb":20.0,"era":1.8,"ra9":1.8,"whip":1.0,"h":14,"bb":1,"er":3,"w":2,"l":0,"sv":1,"hld":2},{"u":"TallThibaut48","p":"Kluber","g":3,"gs":3,"ip":21.1,"outs":64,"so":20,"k9":8.44,"bb9":1.27,"kbb":6.67,"era":0.84,"ra9":0.84,"whip":0.563,"h":9,"bb":3,"er":2,"w":1,"l":0,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Misiorowsk...","g":2,"gs":2,"ip":13.0,"outs":39,"so":19,"k9":13.15,"bb9":0.0,"kbb":null,"era":3.46,"ra9":3.46,"whip":0.846,"h":11,"bb":0,"er":5,"w":0,"l":2,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Hernandez","g":5,"gs":5,"ip":23.1,"outs":70,"so":17,"k9":6.56,"bb9":1.93,"kbb":3.4,"era":7.33,"ra9":9.26,"whip":1.543,"h":31,"bb":5,"er":19,"w":1,"l":3,"sv":0,"hld":0},{"u":"TallThibaut48","p":"N. Ryan","g":2,"gs":2,"ip":12.1,"outs":37,"so":17,"k9":12.41,"bb9":0.73,"kbb":17.0,"era":6.57,"ra9":7.3,"whip":0.892,"h":10,"bb":1,"er":9,"w":0,"l":2,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Taylor","g":8,"gs":0,"ip":11.2,"outs":35,"so":16,"k9":12.34,"bb9":2.31,"kbb":5.33,"era":1.54,"ra9":1.54,"whip":0.771,"h":6,"bb":3,"er":2,"w":1,"l":1,"sv":3,"hld":0},{"u":"TallThibaut48","p":"Helsley","g":7,"gs":0,"ip":11.2,"outs":35,"so":15,"k9":11.57,"bb9":0.0,"kbb":null,"era":3.09,"ra9":3.09,"whip":0.686,"h":8,"bb":0,"er":4,"w":0,"l":2,"sv":0,"hld":1},{"u":"TallThibaut48","p":"Richard","g":7,"gs":7,"ip":47.2,"outs":143,"so":15,"k9":2.83,"bb9":0.76,"kbb":3.75,"era":5.1,"ra9":5.48,"whip":1.049,"h":46,"bb":4,"er":27,"w":1,"l":5,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Sasaki","g":2,"gs":2,"ip":14.1,"outs":43,"so":15,"k9":9.42,"bb9":0.0,"kbb":null,"era":3.14,"ra9":3.14,"whip":0.628,"h":9,"bb":0,"er":5,"w":0,"l":2,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Romero","g":7,"gs":0,"ip":12.0,"outs":36,"so":13,"k9":9.75,"bb9":2.25,"kbb":4.33,"era":0.75,"ra9":0.75,"whip":0.583,"h":4,"bb":3,"er":1,"w":0,"l":0,"sv":4,"hld":1},{"u":"TallThibaut48","p":"Schwellenb...","g":4,"gs":4,"ip":25.1,"outs":76,"so":12,"k9":4.26,"bb9":1.07,"kbb":4.0,"era":3.91,"ra9":4.62,"whip":1.184,"h":27,"bb":3,"er":11,"w":2,"l":0,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Willis","g":1,"gs":1,"ip":7.2,"outs":23,"so":11,"k9":12.91,"bb9":0.0,"kbb":null,"era":1.17,"ra9":1.17,"whip":0.783,"h":6,"bb":0,"er":1,"w":0,"l":0,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Burns","g":1,"gs":1,"ip":7.0,"outs":21,"so":11,"k9":14.14,"bb9":0.0,"kbb":null,"era":3.86,"ra9":3.86,"whip":0.714,"h":5,"bb":0,"er":3,"w":0,"l":1,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Morris","g":2,"gs":0,"ip":4.1,"outs":13,"so":10,"k9":20.77,"bb9":4.15,"kbb":5.0,"era":4.15,"ra9":4.15,"whip":1.154,"h":3,"bb":2,"er":2,"w":0,"l":0,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Palencia","g":3,"gs":2,"ip":11.2,"outs":35,"so":9,"k9":6.94,"bb9":1.54,"kbb":4.5,"era":6.94,"ra9":9.26,"whip":1.714,"h":18,"bb":2,"er":9,"w":0,"l":1,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Taylor","g":3,"gs":0,"ip":6.0,"outs":18,"so":9,"k9":13.5,"bb9":0.0,"kbb":null,"era":3.0,"ra9":4.5,"whip":0.5,"h":3,"bb":0,"er":2,"w":0,"l":3,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Broxton","g":6,"gs":0,"ip":9.1,"outs":28,"so":9,"k9":8.68,"bb9":0.96,"kbb":9.0,"era":0.0,"ra9":0.0,"whip":0.214,"h":1,"bb":1,"er":0,"w":0,"l":0,"sv":0,"hld":1},{"u":"TallThibaut48","p":"Carlton","g":3,"gs":3,"ip":15.1,"outs":46,"so":9,"k9":5.28,"bb9":1.17,"kbb":4.5,"era":2.35,"ra9":2.35,"whip":0.848,"h":11,"bb":2,"er":4,"w":1,"l":2,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Alvarado","g":3,"gs":0,"ip":4.1,"outs":13,"so":7,"k9":14.54,"bb9":0.0,"kbb":null,"era":0.0,"ra9":0.0,"whip":0.462,"h":2,"bb":0,"er":0,"w":0,"l":0,"sv":1,"hld":0},{"u":"TallThibaut48","p":"Sproat","g":3,"gs":3,"ip":19.0,"outs":57,"so":7,"k9":3.32,"bb9":0.47,"kbb":7.0,"era":3.32,"ra9":3.32,"whip":1.105,"h":20,"bb":1,"er":7,"w":1,"l":1,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Antone","g":4,"gs":0,"ip":6.0,"outs":18,"so":6,"k9":9.0,"bb9":1.5,"kbb":6.0,"era":6.0,"ra9":7.5,"whip":1.167,"h":6,"bb":1,"er":4,"w":0,"l":1,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Strahm","g":3,"gs":0,"ip":6.1,"outs":19,"so":5,"k9":7.11,"bb9":0.0,"kbb":null,"era":1.42,"ra9":1.42,"whip":1.105,"h":7,"bb":0,"er":1,"w":1,"l":0,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Suarez","g":5,"gs":0,"ip":6.0,"outs":18,"so":5,"k9":7.5,"bb9":1.5,"kbb":5.0,"era":3.0,"ra9":4.5,"whip":1.0,"h":5,"bb":1,"er":2,"w":2,"l":0,"sv":2,"hld":0},{"u":"TallThibaut48","p":"Urena","g":2,"gs":2,"ip":10.1,"outs":31,"so":5,"k9":4.35,"bb9":0.87,"kbb":5.0,"era":9.58,"ra9":9.58,"whip":1.161,"h":11,"bb":1,"er":11,"w":0,"l":2,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Kimbrel","g":4,"gs":0,"ip":8.0,"outs":24,"so":4,"k9":4.5,"bb9":1.13,"kbb":4.0,"era":0.0,"ra9":0.0,"whip":0.75,"h":5,"bb":1,"er":0,"w":2,"l":0,"sv":0,"hld":1},{"u":"LinguiniEater","p":"Kluber","g":1,"gs":1,"ip":8.0,"outs":24,"so":4,"k9":4.5,"bb9":3.38,"kbb":1.33,"era":1.13,"ra9":1.13,"whip":0.75,"h":3,"bb":3,"er":1,"w":0,"l":0,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Morejon","g":1,"gs":0,"ip":4.0,"outs":12,"so":4,"k9":9.0,"bb9":0.0,"kbb":null,"era":0.0,"ra9":0.0,"whip":0.0,"h":0,"bb":0,"er":0,"w":1,"l":0,"sv":0,"hld":0},{"u":"TallThibaut48","p":"G. Jump","g":2,"gs":2,"ip":10.1,"outs":31,"so":4,"k9":3.48,"bb9":1.74,"kbb":2.0,"era":3.48,"ra9":3.48,"whip":1.258,"h":11,"bb":2,"er":4,"w":0,"l":2,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Yesavage","g":1,"gs":1,"ip":3.0,"outs":9,"so":4,"k9":12.0,"bb9":0.0,"kbb":null,"era":0.0,"ra9":0.0,"whip":0.333,"h":1,"bb":0,"er":0,"w":0,"l":1,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Miller","g":1,"gs":0,"ip":3.0,"outs":9,"so":3,"k9":9.0,"bb9":0.0,"kbb":null,"era":6.0,"ra9":6.0,"whip":1.0,"h":3,"bb":0,"er":2,"w":0,"l":0,"sv":0,"hld":0},{"u":"TallThibaut48","p":"O'Brien","g":1,"gs":0,"ip":1.2,"outs":5,"so":3,"k9":16.2,"bb9":0.0,"kbb":null,"era":0.0,"ra9":0.0,"whip":0.6,"h":1,"bb":0,"er":0,"w":1,"l":0,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Rodriguez","g":4,"gs":4,"ip":22.1,"outs":67,"so":3,"k9":1.21,"bb9":2.42,"kbb":0.5,"era":4.84,"ra9":4.84,"whip":1.209,"h":21,"bb":6,"er":12,"w":0,"l":2,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Sutter","g":2,"gs":0,"ip":2.1,"outs":7,"so":3,"k9":11.57,"bb9":0.0,"kbb":null,"era":0.0,"ra9":0.0,"whip":0.429,"h":1,"bb":0,"er":0,"w":0,"l":0,"sv":1,"hld":0},{"u":"TallThibaut48","p":"Zuniga","g":2,"gs":0,"ip":5.0,"outs":15,"so":3,"k9":5.4,"bb9":0.0,"kbb":null,"era":3.6,"ra9":7.2,"whip":1.4,"h":7,"bb":0,"er":2,"w":0,"l":1,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Antone","g":2,"gs":0,"ip":2.1,"outs":7,"so":2,"k9":7.71,"bb9":3.86,"kbb":2.0,"era":7.71,"ra9":7.71,"whip":1.714,"h":3,"bb":1,"er":2,"w":0,"l":1,"sv":1,"hld":0},{"u":"LinguiniEater","p":"Baker","g":1,"gs":0,"ip":0.2,"outs":2,"so":2,"k9":27.0,"bb9":0.0,"kbb":null,"era":0.0,"ra9":0.0,"whip":1.5,"h":1,"bb":0,"er":0,"w":0,"l":0,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Herget","g":5,"gs":0,"ip":8.0,"outs":24,"so":2,"k9":2.25,"bb9":1.13,"kbb":2.0,"era":3.38,"ra9":4.5,"whip":1.0,"h":7,"bb":1,"er":3,"w":0,"l":2,"sv":2,"hld":0},{"u":"TallThibaut48","p":"Iglesias","g":1,"gs":0,"ip":1.0,"outs":3,"so":2,"k9":18.0,"bb9":0.0,"kbb":null,"era":0.0,"ra9":0.0,"whip":0.0,"h":0,"bb":0,"er":0,"w":0,"l":0,"sv":1,"hld":0},{"u":"TallThibaut48","p":"Petty","g":1,"gs":0,"ip":2.0,"outs":6,"so":2,"k9":9.0,"bb9":0.0,"kbb":null,"era":0.0,"ra9":0.0,"whip":0.0,"h":0,"bb":0,"er":0,"w":0,"l":0,"sv":0,"hld":0},{"u":"LinguiniEater","p":"Bubic","g":1,"gs":1,"ip":6.0,"outs":18,"so":1,"k9":1.5,"bb9":0.0,"kbb":null,"era":7.5,"ra9":7.5,"whip":1.333,"h":8,"bb":0,"er":5,"w":0,"l":1,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Ashcraft","g":1,"gs":1,"ip":5.0,"outs":15,"so":1,"k9":1.8,"bb9":0.0,"kbb":null,"era":7.2,"ra9":7.2,"whip":1.4,"h":7,"bb":0,"er":4,"w":0,"l":1,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Kimbrel","g":1,"gs":0,"ip":2.0,"outs":6,"so":1,"k9":4.5,"bb9":0.0,"kbb":null,"era":0.0,"ra9":0.0,"whip":0.5,"h":1,"bb":0,"er":0,"w":0,"l":0,"sv":0,"hld":1},{"u":"TallThibaut48","p":"Macko","g":1,"gs":0,"ip":1.0,"outs":3,"so":1,"k9":9.0,"bb9":0.0,"kbb":null,"era":0.0,"ra9":0.0,"whip":0.0,"h":0,"bb":0,"er":0,"w":0,"l":0,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Morejon","g":2,"gs":0,"ip":1.2,"outs":5,"so":1,"k9":5.4,"bb9":0.0,"kbb":null,"era":0.0,"ra9":0.0,"whip":0.0,"h":0,"bb":0,"er":0,"w":0,"l":0,"sv":1,"hld":1},{"u":"TallThibaut48","p":"Sanchez","g":1,"gs":1,"ip":1.1,"outs":4,"so":1,"k9":6.75,"bb9":0.0,"kbb":null,"era":6.75,"ra9":6.75,"whip":0.75,"h":1,"bb":0,"er":1,"w":0,"l":0,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Cleavinger","g":1,"gs":0,"ip":0.2,"outs":2,"so":0,"k9":0.0,"bb9":0.0,"kbb":null,"era":54.0,"ra9":54.0,"whip":6.0,"h":4,"bb":0,"er":4,"w":0,"l":0,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Phillips","g":1,"gs":0,"ip":2.0,"outs":6,"so":0,"k9":0.0,"bb9":0.0,"kbb":null,"era":27.0,"ra9":27.0,"whip":3.5,"h":7,"bb":0,"er":6,"w":0,"l":1,"sv":0,"hld":0},{"u":"TallThibaut48","p":"Uceta","g":1,"gs":0,"ip":3.0,"outs":9,"so":0,"k9":0.0,"bb9":0.0,"kbb":null,"era":3.0,"ra9":3.0,"whip":1.0,"h":3,"bb":0,"er":1,"w":0,"l":0,"sv":0,"hld":0}],"team":{"LinguiniEater":{"bat":{"username":"LinguiniEater","ab":3369,"h":699,"hr":143,"rbi":356,"runs":362,"bb":105,"so":779,"sb":170,"cs":50,"doubles":111,"triples":16,"avg":0.207,"obp":0.24,"slg":0.377,"ops":0.617},"pit":{"username":"LinguiniEater","outs":2994,"innings":998.0,"so":963,"bb":60,"h":662,"er":201,"r":222,"era":1.81,"k_per_9":8.68,"bb_per_9":0.54,"whip":0.723}},"TallThibaut48":{"bat":{"username":"TallThibaut48","ab":3602,"h":662,"hr":88,"rbi":217,"runs":222,"bb":60,"so":963,"sb":22,"cs":8,"doubles":102,"triples":5,"avg":0.184,"obp":0.201,"slg":0.288,"ops":0.489},"pit":{"username":"TallThibaut48","outs":2791,"innings":930.1,"so":779,"bb":105,"h":699,"er":339,"r":362,"era":3.28,"k_per_9":7.54,"bb_per_9":1.02,"whip":0.864}}},"coop":[{"d":"06/20/2026 22:29:33","home":"LinguiniEater","away":"MMgames5","hr":2,"ar":3,"hs":"Birds","asq":"Polar Bears"},{"d":"05/27/2026 03:55:54","home":"sosa2gang","away":"LinguiniEater","hr":11,"ar":1,"hs":"hardball","asq":"SWEs"},{"d":"05/18/2026 04:35:37","home":"LinguiniEater","away":"DenmarkJr","hr":2,"ar":0,"hs":"SWEs","asq":"BOMB SQUAD"},{"d":"05/08/2026 04:52:45","home":"LinguiniEater","away":"roundcircles","hr":0,"ar":7,"hs":"SWEs","asq":"big beefy"},{"d":"04/29/2026 04:33:04","home":"LinguiniEater","away":"GoombaKru","hr":5,"ar":1,"hs":"SWEs","asq":"GoombaKru"},{"d":"04/25/2026 03:29:56","home":"LinguiniEater","away":"fs3dm","hr":2,"ar":11,"hs":"SWEs","asq":"Manatees"},{"d":"04/18/2026 20:28:32","home":"LinguiniEater","away":"A-Train47","hr":1,"ar":14,"hs":"SWEs","asq":"Yokais"},{"d":"04/15/2026 04:36:38","home":"LinguiniEater","away":"JeffreydaJEEP99","hr":6,"ar":5,"hs":"SWEs","asq":"BlueBalls"}]};
+
+const [P1, P2] = DATA.players;
+const COLOR = { [P1]: "var(--home)", [P2]: "var(--away)" };
+let viewer = P1;
+let tab = "overview";
+
+const $ = (id) => document.getElementById(id);
+const num = (v, d = 0) => (v === null || v === undefined || Number.isNaN(v)) ? "" : Number(v).toFixed(d);
+// Baseball drops the leading zero on AVG/OBP/SLG/OPS but keeps it on ERA/WHIP.
+const rate = (v) => (v === null || v === undefined) ? "" : Number(v).toFixed(3).replace(/^0\./, ".");
+
+/* ---------------- perspective ---------------- */
+// Every game is stored home/away as the API reports it. "You" is whichever side
+// the current viewer sat on, so switching viewer flips the whole page.
+function fromView(g, who) {
+  const mine = g.home.toLowerCase() === who.toLowerCase();
+  const my = mine ? g.hr : g.ar, their = mine ? g.ar : g.hr;
+  return {
+    ...g,
+    my, their,
+    mySquad: mine ? g.hs : g.asq,
+    theirSquad: mine ? g.asq : g.hs,
+    res: g.win === null ? null : ((g.win === "home") === mine ? "W" : "L"),
+  };
+}
+const opponentOf = (who) => (who === P1 ? P2 : P1);
+
+function record(who) {
+  const gs = DATA.games.map((g) => fromView(g, who));
+  const w = gs.filter((g) => g.res === "W").length;
+  const l = gs.filter((g) => g.res === "L").length;
+  const rf = gs.reduce((a, g) => a + g.my, 0), ra = gs.reduce((a, g) => a + g.their, 0);
+  return { gs, w, l, rf, ra };
+}
+
+function streaks(res) {
+  let cur = 0, kind = "", bw = 0, bl = 0;
+  for (const r of res) {
+    cur = r === kind ? cur + 1 : 1; kind = r;
+    if (kind === "W") bw = Math.max(bw, cur); else bl = Math.max(bl, cur);
+  }
+  return { cur, kind, bw, bl };
+}
+
+/* ---------------- scoreboard ---------------- */
+function renderBoard() {
+  const you = viewer, them = opponentOf(viewer);
+  const r = record(you);
+  $("name-a").textContent = you;
+  $("name-b").textContent = them;
+  $("tag-a").textContent = "you";
+  $("tag-b").textContent = "opponent";
+  $("sw-a").style.background = COLOR[you];
+  $("sw-b").style.background = COLOR[them];
+  $("wins-a").textContent = r.w;
+  $("wins-b").textContent = r.l;
+  $("wins-a").className = "wins" + (r.w >= r.l ? " lead" : "");
+  $("wins-b").className = "wins" + (r.l > r.w ? " lead" : "");
+
+  const leader = r.w >= r.l ? you : them;
+  const pct = rate(Math.max(r.w, r.l) / Math.max(r.w + r.l, 1));
+  $("verdict").textContent = `${leader} leads the series ${Math.max(r.w, r.l)}–${Math.min(r.w, r.l)} (${pct})`;
+
+  const res = r.gs.map((g) => g.res).filter(Boolean);
+  const st = streaks(res);
+  const last10 = res.slice(-10);
+  const strip = [
+    ["Games", r.gs.length],
+    ["Run diff", (r.rf - r.ra > 0 ? "+" : "") + (r.rf - r.ra)],
+    ["Runs", `${r.rf}–${r.ra}`],
+    ["Streak", `${st.cur}${st.kind}`],
+    ["Longest", `${st.bw}W · ${st.bl}L`],
+    ["Last 10", `${last10.filter((x) => x === "W").length}–${last10.filter((x) => x === "L").length}`],
+  ];
+  $("strip").innerHTML = strip
+    .map(([k, v]) => `<div class="strip-item"><span class="strip-k">${k}</span><span class="strip-v">${v}</span></div>`)
+    .join("");
+}
+
+function renderWhoami() {
+  $("whoami").innerHTML = DATA.players
+    .map((p) => `<button type="button" data-p="${p}" aria-pressed="${p === viewer}">${p}</button>`)
+    .join("");
+  $("whoami").querySelectorAll("button").forEach((b) =>
+    b.addEventListener("click", () => { viewer = b.dataset.p; renderAll(); }));
+}
+
+/* ---------------- overview ---------------- */
+const CMP_BAT = [
+  ["Batting average", "avg", false, rate], ["On-base %", "obp", false, rate],
+  ["Slugging %", "slg", false, rate], ["OPS", "ops", false, rate],
+  ["Home runs", "hr", false, (v) => num(v)], ["Runs", "runs", false, (v) => num(v)],
+  ["Hits", "h", false, (v) => num(v)], ["Stolen bases", "sb", false, (v) => num(v)],
+  ["Strikeouts", "so", true, (v) => num(v)],
+];
+const CMP_PIT = [
+  ["ERA", "era", true, (v) => num(v, 2)], ["WHIP", "whip", true, (v) => num(v, 3)],
+  ["Runs allowed / 9", "ra9", true, (v) => num(v, 2)],
+  ["K / 9", "k_per_9", false, (v) => num(v, 2)],
+  ["BB / 9", "bb_per_9", true, (v) => num(v, 2)],
+  ["Strikeouts", "so", false, (v) => num(v)],
+  ["Innings", "innings", false, (v) => num(v, 1)],
+];
+
+function renderCompare() {
+  const you = viewer, them = opponentOf(viewer);
+  const build = (rows, key) => rows.map(([label, f, lower, fmt]) => {
+    const a = DATA.team[you]?.[key]?.[f], b = DATA.team[them]?.[key]?.[f];
+    if (a === undefined || b === undefined) return "";
+    const aWins = lower ? a < b : a > b, bWins = lower ? b < a : b > a;
+    return `<tr>
+      <td class="v left ${aWins ? "win" : ""}">${fmt(a)}</td>
+      <td class="k">${label}</td>
+      <td class="v right ${bWins ? "win" : ""}">${fmt(b)}</td>
+    </tr>`;
+  }).join("");
+  $("cmp-bat").innerHTML = build(CMP_BAT, "bat");
+  $("cmp-pit").innerHTML = build(CMP_PIT, "pit");
+  $("cmp-note").textContent =
+    `${you} on the left, ${them} on the right. Bold is the better mark. `
+    + `Totals are every card either of you played across all ${DATA.games.length} games.`;
+}
+
+function renderFeats() {
+  const { gs } = record(viewer);
+  const played = gs.filter((g) => g.res);
+  const margin = (g) => g.my - g.their;
+  const best = played.reduce((a, g) => (margin(g) > margin(a) ? g : a), played[0]);
+  const worst = played.reduce((a, g) => (margin(g) < margin(a) ? g : a), played[0]);
+  const high = played.reduce((a, g) => (g.my + g.their > a.my + a.their ? g : a), played[0]);
+  // A 0-0 game (awarded on a quit) is nobody's shutout, and counting it would
+  // put the same game in both columns.
+  const real = played.filter((g) => g.my + g.their > 0);
+  const one = played.filter((g) => Math.abs(margin(g)) === 1);
+  const cards = [
+    ["Biggest win", `${best.my}–${best.their}`, best.d.slice(0, 10)],
+    ["Worst loss", `${worst.my}–${worst.their}`, worst.d.slice(0, 10)],
+    ["Highest scoring", `${high.my}–${high.their}`, high.d.slice(0, 10)],
+    ["Shutouts thrown", real.filter((g) => g.their === 0).length, "opponent held scoreless"],
+    ["Shut out", real.filter((g) => g.my === 0).length, "you held scoreless"],
+    ["One-run games", one.length, `${one.filter((g) => g.res === "W").length} won`],
+    ["Extra innings", played.filter((g) => g.inn > 9).length, "went past the 9th"],
+    ["Ended early", played.filter((g) => g.early).length, "quit or disconnect"],
+  ];
+  $("feats").innerHTML = cards.map(([k, v, s]) =>
+    `<div class="feat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+}
+
+function renderForm() {
+  const { gs } = record(viewer);
+  $("form").innerHTML = gs.filter((g) => g.res).map((g) =>
+    `<span title="${g.d} · ${g.my}–${g.their}" style="display:inline-block;width:11px;height:19px;margin:1px;border-radius:2px;background:${
+      g.res === "W" ? COLOR[viewer] : COLOR[opponentOf(viewer)]};opacity:${g.early ? .45 : 1}"></span>`).join("");
+}
+
+/* ---------------- leaderboards ---------------- */
+const BAT_COLS = [
+  ["p", "Player", "name"], ["u", "Owner", "owner"], ["g", "G"], ["pa", "PA"], ["ab", "AB"],
+  ["h", "H"], ["avg", "AVG", "", rate], ["obp", "OBP", "", rate], ["slg", "SLG", "", rate],
+  ["ops", "OPS", "", rate], ["iso", "ISO", "", rate], ["hr", "HR"], ["rbi", "RBI"], ["r", "R"],
+  ["d2", "2B"], ["d3", "3B"], ["bb", "BB"], ["so", "SO"],
+  ["kp", "K%", "", (v) => num(v, 1)], ["bbp", "BB%", "", (v) => num(v, 1)],
+  ["sb", "SB"], ["cs", "CS"], ["sbp", "SB%", "", rate], ["babip", "BABIP", "", rate],
+];
+const PIT_COLS = [
+  ["p", "Player", "name"], ["u", "Owner", "owner"], ["g", "G"], ["gs", "GS"],
+  ["ip", "IP", "", (v) => num(v, 1)], ["so", "SO"],
+  ["k9", "K/9", "", (v) => num(v, 2)], ["bb9", "BB/9", "", (v) => num(v, 2)],
+  ["kbb", "K/BB", "", (v) => num(v, 2)], ["era", "ERA", "", (v) => num(v, 2)],
+  ["ra9", "RA/9", "", (v) => num(v, 2)], ["whip", "WHIP", "", (v) => num(v, 3)],
+  ["h", "H"], ["bb", "BB"], ["er", "ER"], ["w", "W"], ["l", "L"], ["sv", "SV"], ["hld", "HLD"],
+];
+// Lower is better for these, so a first click should sort ascending.
+const LOWER = new Set(["era", "whip", "ra9", "bb9", "kp"]);
+
+const state = {
+  bat: { sort: "hr", asc: false, min: 50, owner: "Both", find: "" },
+  pit: { sort: "so", asc: false, min: 15, owner: "Both", find: "" },
+};
+
+function controls(kind) {
+  const s = state[kind];
+  const qual = kind === "bat" ? "AB" : "IP";
+  const el = $(kind === "bat" ? "ctl-bat" : "ctl-pit");
+  el.innerHTML = `
+    <div class="field"><label>Card owner</label>
+      <select data-k="owner">${["Both", viewer, opponentOf(viewer)]
+        .map((o) => `<option ${o === s.owner ? "selected" : ""}>${o}</option>`).join("")}</select></div>
+    <div class="field"><label>Minimum ${qual}</label>
+      <input type="number" data-k="min" value="${s.min}" min="0" step="5"></div>
+    <div class="field"><label>Find a player</label>
+      <input type="text" data-k="find" value="${s.find}" placeholder="surname…"></div>`;
+  el.querySelectorAll("[data-k]").forEach((inp) => {
+    inp.addEventListener("input", () => {
+      const k = inp.dataset.k;
+      s[k] = k === "min" ? Number(inp.value || 0) : inp.value;
+      renderBoardTable(kind);
+    });
+  });
+}
+
+function rowsFor(kind) {
+  const s = state[kind];
+  const src = kind === "bat" ? DATA.batting : DATA.pitching;
+  const qual = kind === "bat" ? "ab" : "ip";
+  let rows = src.filter((r) => (r[qual] ?? 0) >= s.min);
+  if (s.owner !== "Both") rows = rows.filter((r) => r.u === s.owner);
+  if (s.find) rows = rows.filter((r) => (r.p || "").toLowerCase().includes(s.find.toLowerCase()));
+  const f = s.sort;
+  return rows.slice().sort((a, b) => {
+    const av = a[f], bv = b[f];
+    if (av === null || av === undefined) return 1;
+    if (bv === null || bv === undefined) return -1;
+    if (av === bv) return (b.g ?? 0) - (a.g ?? 0);
+    return s.asc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+  });
+}
+
+function renderBoardTable(kind) {
+  const cols = kind === "bat" ? BAT_COLS : PIT_COLS;
+  const s = state[kind];
+  const rows = rowsFor(kind);
+  const head = `<thead><tr><th>#</th>${cols.map(([f, label]) =>
+    `<th class="sortable" data-f="${f}" ${f === s.sort ? `aria-sort="${s.asc ? "ascending" : "descending"}"` : ""}>${label}</th>`
+  ).join("")}</tr></thead>`;
+  const body = `<tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td>${cols.map(([f, , cls, fmt]) => {
+    if (cls === "owner") {
+      return `<td class="owner"><span class="dot" style="background:${COLOR[r.u]}"></span>${r.u}</td>`;
+    }
+    const v = fmt ? fmt(r[f]) : (r[f] ?? "");
+    return `<td class="${cls || ""}${f === s.sort ? " hi" : ""}">${v}</td>`;
+  }).join("")}</tr>`).join("")}</tbody>`;
+  const tbl = $(kind === "bat" ? "tbl-bat" : "tbl-pit");
+  tbl.innerHTML = head + body;
+  tbl.querySelectorAll("th.sortable").forEach((th) => th.addEventListener("click", () => {
+    const f = th.dataset.f;
+    if (s.sort === f) s.asc = !s.asc;
+    else { s.sort = f; s.asc = LOWER.has(f); }
+    renderBoardTable(kind);
+  }));
+  renderBars(kind, rows.slice(0, 12));
+}
+
+function renderBars(kind, top) {
+  const s = state[kind];
+  const cols = kind === "bat" ? BAT_COLS : PIT_COLS;
+  const col = cols.find((c) => c[0] === s.sort);
+  const fmt = col?.[3] || ((v) => num(v));
+  const vals = top.map((r) => Number(r[s.sort]) || 0);
+  const max = Math.max(...vals, 1);
+  $(kind === "bat" ? "bars-bat" : "bars-pit").innerHTML = top.map((r) => {
+    const v = Number(r[s.sort]) || 0;
+    // Label carries the owner: both players field cards with the same surname
+    // (two Fingers, two Durans), so a bare name would conflate them.
+    return `<div class="bar-row">
+      <span class="bar-name" title="${r.p} (${r.u})"><span class="dot" style="background:${COLOR[r.u]}"></span>${r.p}</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${Math.max(2, (v / max) * 100)}%;background:${COLOR[r.u]}"></span></span>
+      <span class="bar-val">${fmt(r[s.sort])}</span>
+    </div>`;
+  }).join("");
+}
+
+/* ---------------- games ---------------- */
+function renderGames() {
+  const { gs } = record(viewer);
+  const rows = gs.slice().reverse();
+  $("games-note").textContent =
+    `${rows.length} head-to-head games, newest first, from ${viewer}'s side.`
+    + (DATA.coop.length ? ` Plus ${DATA.coop.length} co-op games where you two were teammates — those aren't in the record.` : "");
+  $("tbl-games").innerHTML =
+    `<thead><tr><th>Date</th><th>You</th><th>Them</th><th>Result</th><th>Inn</th>
+     <th>Your squad</th><th>Their squad</th><th>Note</th></tr></thead><tbody>` +
+    rows.map((g) => `<tr>
+      <td class="name">${g.d.slice(0, 10)}</td>
+      <td>${g.my}</td><td>${g.their}</td>
+      <td class="${g.res === "W" ? "w" : "l"}">${g.res || ""}</td>
+      <td>${g.inn ?? ""}</td>
+      <td class="name">${g.mySquad || ""}</td><td class="name">${g.theirSquad || ""}</td>
+      <td class="name">${g.early ? '<span class="pill">ended early</span>' : ""}</td>
+    </tr>`).join("") + "</tbody>";
+}
+
+/* ---------------- tabs ---------------- */
+const TABS = [["overview", "Overview"], ["hitters", "Hitters"], ["pitchers", "Pitchers"], ["games", "Games"]];
+function renderTabs() {
+  $("tabs").innerHTML = TABS.map(([id, label]) =>
+    `<button role="tab" data-t="${id}" aria-selected="${id === tab}">${label}</button>`).join("");
+  $("tabs").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    tab = b.dataset.t; renderTabs(); showTab();
+  }));
+}
+function showTab() {
+  TABS.forEach(([id]) => { $("tab-" + id).hidden = id !== tab; });
+}
+
+function renderAll() {
+  renderBoard(); renderWhoami(); renderCompare(); renderFeats(); renderForm();
+  controls("bat"); controls("pit");
+  renderBoardTable("bat"); renderBoardTable("pit");
+  renderGames(); renderTabs(); showTab();
+  $("foot").innerHTML =
+    `Built from the public MLB The Show API — game history and box scores for every `
+    + `head-to-head game between ${P1} and ${P2}. Data through ${DATA.through}; page generated ${DATA.generated}. `
+    + `The API reports batters by surname only, caps line scores at nine innings, and has no field `
+    + `distinguishing an invited match from a random one, so "head to head" means opponent identity.`;
+}
+
+renderAll();
+</script>
