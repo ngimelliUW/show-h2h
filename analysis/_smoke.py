@@ -38,8 +38,23 @@ check("no NaN leaked into the JSON", "NaN" not in json.dumps(data))
 
 # The JS reads these by id; a rename in the template would silently break the page.
 for element in ("verdict", "wins-a", "wins-b", "whoami", "tabs", "cmp-bat",
-                "cmp-pit", "feats", "tbl-bat", "tbl-pit", "tbl-games"):
+                "cmp-pit", "feats", "form", "tbl-bat", "tbl-pit", "tbl-games",
+                "ko-a", "ko-b", "discipline", "pp-table", "pp-hits", "hr-table"):
     check(f"#{element} in template", f'id="{element}"' in html)
+
+# Every DATA key the page reads must be one build() actually produces. This is
+# the check that would have caught a template shipping ahead of its payload:
+# `DATA.clutch.find(...)` on a missing key threw and blanked every section that
+# rendered after it.
+read = set(re.findall(r"DATA\.([A-Za-z_][A-Za-z0-9_]*)", html))
+provided = set(data)
+check("template reads no DATA key that build() omits", read <= provided,
+      f"missing: {sorted(read - provided) or 'none'}")
+
+# And a missing key must be survivable regardless, since the template is read
+# from disk while the builder is an imported module.
+check("template normalizes DATA before use", "if (!Array.isArray(DATA[k]))" in html)
+check("render sections are isolated", 'section "${name}" failed' in html)
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
 check("dashboard module is importable", Path("app/dashboard.py").exists())

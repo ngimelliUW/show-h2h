@@ -426,6 +426,17 @@
 <script>
 const DATA = /*__DATA__*/null;
 
+// Never let a missing key take the page down. The template is read from disk at
+// render time while the Python that builds DATA is an imported module, so a
+// deploy can briefly serve a new template against an older payload — and one
+// `undefined.find(...)` used to blank every section that renders after it.
+for (const k of ["games", "batting", "pitching", "coop", "koGrid", "koTiming",
+                 "homers", "perfect", "perfectHits", "clutch"]) {
+  if (!Array.isArray(DATA[k])) DATA[k] = [];
+}
+DATA.team = DATA.team || {};
+DATA.players = DATA.players || ["Player 1", "Player 2"];
+
 const [P1, P2] = DATA.players;
 const COLOR = { [P1]: "var(--home)", [P2]: "var(--away)" };
 let viewer = P1;
@@ -851,11 +862,22 @@ function showTab() {
 }
 
 function renderAll() {
-  renderBoard(); renderWhoami(); renderCompare(); renderFeats(); renderForm();
-  renderMatchup();
-  controls("bat"); controls("pit");
-  renderBoardTable("bat"); renderBoardTable("pit");
-  renderGames(); renderTabs(); showTab();
+  // Each section is isolated: a failure in one used to kill every section that
+  // ran after it, so the page came up with the scoreboard and nothing else.
+  const sections = {
+    board: renderBoard, whoami: renderWhoami, compare: renderCompare,
+    feats: renderFeats, form: renderForm, matchup: renderMatchup,
+    hitters: () => { controls("bat"); renderBoardTable("bat"); },
+    pitchers: () => { controls("pit"); renderBoardTable("pit"); },
+    games: renderGames, tabs: () => { renderTabs(); showTab(); },
+  };
+  for (const [name, fn] of Object.entries(sections)) {
+    try {
+      fn();
+    } catch (err) {
+      console.error(`[show-h2h] section "${name}" failed:`, err);
+    }
+  }
   $("foot").innerHTML =
     `Built from the public MLB The Show API — game history and box scores for every `
     + `head-to-head game between ${P1} and ${P2}. Data through ${DATA.through}; page generated ${DATA.generated}. `

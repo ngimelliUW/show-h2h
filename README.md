@@ -68,7 +68,16 @@ two front-ends meant two designs to keep in sync, and they immediately drifted.
 uv run python analysis/_verify.py   # stat math + ingest correctness, 21 assertions
 uv run python analysis/_smoke.py    # every page renders, from both perspectives
 uv run python analysis/_flip.py     # the perspective switch is a true mirror
+
+# end-to-end, needs a running app; playwright is pulled in per-run
+uv run streamlit run app/dashboard.py --server.port 8502 --server.headless true &
+uv run --with playwright python analysis/_browser.py
 ```
+
+`_browser.py` asserts against the report's **iframe**, not the page.
+`page.on("pageerror")` does not surface exceptions thrown in a child frame, so a
+naive check reports "no errors" while the page is visibly broken — that is
+exactly how a crash in `renderFeats` once shipped.
 
 `_verify.py` asserts against figures measured directly from the API before the
 pipeline existed, so it catches a regression in ingestion, not just a crash.
