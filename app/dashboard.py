@@ -27,6 +27,16 @@ import streamlit.components.v1 as components
 # make the src/ layout importable without an editable install. Harmless locally.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+# Streamlit re-executes this script on every interaction but keeps imported
+# modules in sys.modules, so after a redeploy the process can hold the previous
+# release's Python while serving the new report template — which is read from
+# disk every render. That skew shipped twice: a page whose markup expected data
+# the stale builder did not produce, needing a manual reboot to clear.
+# Dropping the package before importing costs a few milliseconds and makes a
+# deploy self-healing.
+for _name in [m for m in list(sys.modules) if m == "show_h2h" or m.startswith("show_h2h.")]:
+    del sys.modules[_name]
+
 from show_h2h import config, db, report  # noqa: E402
 
 st.set_page_config(page_title="The Rivalry — MLB The Show 26", page_icon="⚾",
