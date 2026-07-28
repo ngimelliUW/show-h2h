@@ -31,7 +31,7 @@ from show_h2h import config, db, report  # noqa: E402
 st.set_page_config(page_title="The Rivalry — MLB The Show 26", page_icon="⚾",
                    layout="wide", initial_sidebar_state="collapsed")
 
-SEED = Path(__file__).resolve().parents[1] / "data" / "show.db"
+SEED = Path(__file__).resolve().parents[1] / "data" / "seed.db"
 RUNTIME = Path(tempfile.gettempdir()) / "show-h2h" / "show.db"
 
 

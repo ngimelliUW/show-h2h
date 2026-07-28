@@ -11,6 +11,7 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import shutil
 
 from show_h2h import config, db
 
@@ -60,6 +61,7 @@ def main(argv=None) -> int:
     b.add_argument("--limit", type=int, help="Cap how many to fetch this run.")
 
     sub.add_parser("parse-logs", help="Re-parse stored play-by-play into events (no network).")
+    sub.add_parser("snapshot", help="Write data/seed.db — the copy the hosted app ships with.")
     sub.add_parser("refresh", help="Incremental history + any missing H2H box scores.")
     sub.add_parser("status", help="Show what's in the database.")
 
@@ -88,6 +90,24 @@ def main(argv=None) -> int:
         res = game_log.run_import(scope=args.scope, limit=args.limit)
         print(f"  imported {res['imported']}, failed {res['failed']}, pending {res['pending']}")
         return 0 if res["failed"] == 0 else 1
+
+    if args.command == "snapshot":
+        # The working database is written constantly and lives in WAL mode, so
+        # copying the file alone can miss recent writes. Checkpoint first, then
+        # publish to a path nothing ever writes to — a file the hosted container
+        # has modified will not accept a git pull, which is how the deploy ended
+        # up pinned to a months-old database.
+        conn = db.connect()
+        try:
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+        finally:
+            conn.close()
+        seed = config.DATA_DIR / "seed.db"
+        shutil.copy2(config.DB_PATH, seed)
+        rows = db.query("SELECT COUNT(*) n FROM pa_events").iloc[0]["n"]
+        print(f"Wrote {seed} ({seed.stat().st_size / 1024 / 1024:.1f} MB, "
+              f"{int(rows)} play-by-play events). Commit it to ship the data.")
+        return 0
 
     if args.command == "parse-logs":
         from show_h2h.importers import play_by_play

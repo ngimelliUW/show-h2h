@@ -4,9 +4,12 @@ __pycache__/
 *.pyc
 .streamlit/secrets.toml
 
-# Local working data. show.db IS committed, so the hosted app has a seed to
-# start from and can pull forward from there; the WAL sidecars are not.
+# Local working data. show.db is the database the CLI reads and writes and is
+# NOT committed; seed.db is the published snapshot the hosted app ships with,
+# written by `ingest snapshot`. Keeping them separate matters — a file the
+# hosted container has written to will not accept a git pull, which once pinned
+# the deploy to a stale database.
 data/*
-!data/show.db
+!data/seed.db
 *.db-wal
 *.db-shm

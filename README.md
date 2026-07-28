@@ -42,19 +42,25 @@ Live at <https://ttvlinguinimlbtheshowstats.streamlit.app> — Streamlit Communi
 Cloud, deployed from this repo with `app/dashboard.py` as the entry point and
 free to run.
 
-`data/show.db` is committed as a seed so the app has data on a cold start, and
+`data/seed.db` is committed so the app has data on a cold start, and
 the **Pull new games** button crawls the Show API for anything played since.
 That crawl is incremental — it stops as soon as it reaches a game already
 stored, so it usually costs a couple of requests.
 
 Streamlit Cloud's disk is ephemeral: games pulled with the button survive while
 the app is warm but are lost when it restarts, falling back to the committed
-seed. To make new games permanent, run `ingest refresh` locally and push the
-database.
+seed. To make new games permanent:
 
-**The app never writes to the committed database.** On boot it copies
-`data/show.db` to a temp path and works there, re-seeding whenever the committed
-file is newer. This matters: the app writes on every boot (schema migrations)
+```bash
+uv run python -m show_h2h.ingest refresh
+uv run python -m show_h2h.ingest snapshot   # checkpoints WAL, writes data/seed.db
+git commit -am "refresh data" && git push
+```
+
+**The app never writes to the committed database.** `data/seed.db` is a
+published snapshot written by `ingest snapshot`; the CLI's working database
+(`data/show.db`) is gitignored. On boot the app copies the seed to a temp path
+and works there, re-seeding whenever the seed is newer. This matters: the app writes on every boot (schema migrations)
 and Streamlit Cloud redeploys by pulling, and a pull will not overwrite a
 locally-modified file. Writing in place pinned the deploy to whatever database
 existed the first time the app ever ran — new code, stale tables, new pages
@@ -188,7 +194,8 @@ app/
   report_template.html   THE UI — hand-written HTML/CSS/JS
   dashboard.py           thin Streamlit shell: embeds the page, refresh button
 analysis/         rivalry_report.py (text summary), _verify.py (checks)
-data/show.db      the database (committed as a seed for the hosted app)
+data/show.db      working database (gitignored)
+data/seed.db      published snapshot the hosted app ships with
 ```
 
 **The UI is `app/report_template.html`, not Streamlit widgets.** The design is a
