@@ -435,9 +435,14 @@ function renderBoard() {
   $("wins-a").className = "wins" + (r.w >= r.l ? " lead" : "");
   $("wins-b").className = "wins" + (r.l > r.w ? " lead" : "");
 
-  const leader = r.w >= r.l ? you : them;
-  const pct = rate(Math.max(r.w, r.l) / Math.max(r.w + r.l, 1));
-  $("verdict").textContent = `${leader} leads the series ${Math.max(r.w, r.l)}–${Math.min(r.w, r.l)} (${pct})`;
+  // Phrased from the viewer's side, and always with their own record first, so
+  // the sentence and the scoreboard above it never disagree about which number
+  // belongs to whom.
+  const pct = rate(r.w / Math.max(r.w + r.l, 1));
+  const verb = r.w > r.l ? "lead" : r.w < r.l ? "trail" : "are level with";
+  $("verdict").textContent =
+    r.w === r.l ? `You are level with ${them} at ${r.w}–${r.l}`
+                : `You ${verb} ${them} ${r.w}–${r.l} (${pct})`;
 
   const res = r.gs.map((g) => g.res).filter(Boolean);
   const st = streaks(res);
