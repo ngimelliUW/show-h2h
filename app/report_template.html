@@ -388,6 +388,7 @@
     <div class="feats" id="never"></div>
 
     <h2>Rarest things done</h2>
+    <p class="note" id="rarest-note"></p>
     <div class="feats" id="rarest"></div>
 
     <h2>Chasing a perfect game</h2>
@@ -672,15 +673,54 @@ function rareFeats(games) {
     return winner === r.b;
   });
 
+  // Who holds the near miss matters as much as the number — "closest: 1 hit"
+  // is a different sentence depending on which of you threw it.
+  const bestOf = (rows, valueFn) => rows.reduce(
+    (best, r) => (best === null || valueFn(r) > valueFn(best) ? r : best), null);
+
   return {
-    cycles, bestCycle,
-    threeHr: bat.filter((r) => r.hr >= 3), mostHr,
-    twentyK: pit.filter((r) => r.so >= 20), mostK,
+    cycles, bestCycle, bestCycleBy: bestOf(bat, legs),
+    threeHr: bat.filter((r) => r.hr >= 3), mostHr, mostHrBy: bestOf(bat, (r) => r.hr || 0),
+    twentyK: pit.filter((r) => r.so >= 20), mostK, mostKBy: bestOf(pit, (r) => r.so || 0),
     immaculate, strikeSide, walkoffs,
-    fourHit: bat.filter((r) => r.h >= 4), mostHits,
-    fiveRbi: bat.filter((r) => r.rbi >= 5), mostRbi,
+    fourHit: bat.filter((r) => r.h >= 4), mostHits, mostHitsBy: bestOf(bat, (r) => r.h || 0),
+    fiveRbi: bat.filter((r) => r.rbi >= 5), mostRbi, mostRbiBy: bestOf(bat, (r) => r.rbi || 0),
     threeSteal: bat.filter((r) => r.sb >= 3),
   };
+}
+
+/* Split a set of feat rows by which player owns them.
+   `side` says whose feat it is: the batter's owner for hitting, and for a
+   half-inning the *other* player, since the row records who was batting. */
+function bySide(rows, side) {
+  const out = { [P1]: 0, [P2]: 0 };
+  for (const r of rows) {
+    const who = side(r);
+    if (who in out) out[who]++;
+  }
+  return out;
+}
+
+const otherPlayer = (u) => (u === P1 ? P2 : P1);
+const batterSide = (r) => r.u;          // hitting feats belong to the card's owner
+const pitcherSide = (r) => otherPlayer(r.b);  // a half-inning names who batted
+const winnerSide = (r) => r.b;          // a walk-off belongs to the side batting
+
+/* "3 you · 0 them", coloured, so a card says whose feat it is at a glance. */
+function splitLine(counts) {
+  const them = opponentOf(viewer);
+  const cell = (n, who) =>
+    `<strong style="color:${COLOR[who]}">${n}</strong>`;
+  return `${cell(counts[viewer] || 0, viewer)} you · `
+       + `${cell(counts[them] || 0, them)} ${them}`;
+}
+
+/* "Misiorowski (you)" — the holder, and whose side they're on. */
+function holder(row, side) {
+  if (!row) return "";
+  const who = side(row);
+  const name = row.p || row.p2 || "";
+  return `${name} (${who === viewer ? "you" : who})`;
 }
 
 /* Complete games, and how close each came to perfection.
@@ -960,14 +1000,26 @@ function renderNever() {
     `<div class="feat"><div class="k">${label}</div><div class="v">${value}</div>` +
     `<div class="s">${sub}</div></div>`;
 
+  // Each near miss names who owns it — "closest: 1 hit" reads very differently
+  // depending on which of you threw it.
+  const best = cgs[0];
+  const fewestHits = cgs.find((c) => c.hits === closestHits);
+  const side = (row) => (row.u === viewer ? "you" : row.u);
   const never = [
     ["Perfect game", perfect.length,
-     closestBR === null ? "no complete games yet" : `closest: ${closestBR} baserunner${closestBR === 1 ? "" : "s"}`],
+     best ? `closest: ${best.name} (${side(best)}) — `
+            + `${closestBR} baserunner${closestBR === 1 ? "" : "s"}`
+          : "no complete games yet"],
     ["No-hitter", noNos.length,
-     closestHits === null ? "no complete games yet" : `closest: ${closestHits} hit${closestHits === 1 ? "" : "s"}`],
-    ["Cycle", f.cycles.length, `closest: ${f.bestCycle} of the 4 hits`],
-    ["3-homer game", f.threeHr.length, `most in one game: ${f.mostHr}`],
-    ["20-strikeout game", f.twentyK.length, `most in one game: ${f.mostK}`],
+     fewestHits ? `closest: ${fewestHits.name} (${side(fewestHits)}) — `
+                  + `${closestHits} hit${closestHits === 1 ? "" : "s"}`
+                : "no complete games yet"],
+    ["Cycle", f.cycles.length,
+     `closest: ${f.bestCycle} of 4 — ${holder(f.bestCycleBy, batterSide)}`],
+    ["3-homer game", f.threeHr.length,
+     `most: ${f.mostHr} — ${holder(f.mostHrBy, batterSide)}`],
+    ["20-strikeout game", f.twentyK.length,
+     `most: ${f.mostK} — ${holder(f.mostKBy, batterSide)}`],
   ].filter(([, n]) => n === 0);   // once someone does it, it stops being "never"
 
   $("never").innerHTML = never.length
@@ -976,13 +1028,24 @@ function renderNever() {
        <div class="s">every feat on the list has been done</div></div>`;
 
   $("rarest").innerHTML = [
-    ["Immaculate innings", f.immaculate.length, "3 K on exactly 9 pitches"],
-    ["Struck out the side", f.strikeSide.length, "3 K in one inning"],
-    ["Walk-off wins", f.walkoffs.length, "won it in the final at-bat"],
-    ["4-hit games", f.fourHit.length, `most hits: ${f.mostHits}`],
-    ["5-RBI games", f.fiveRbi.length, `most RBI: ${f.mostRbi}`],
-    ["3-steal games", f.threeSteal.length, "on the run"],
-  ].map(([k, v, s]) => card(k, v, s)).join("");
+    ["Immaculate innings", f.immaculate.length, bySide(f.immaculate, pitcherSide)],
+    ["Struck out the side", f.strikeSide.length, bySide(f.strikeSide, pitcherSide)],
+    ["Walk-off wins", f.walkoffs.length, bySide(f.walkoffs, winnerSide)],
+    ["4-hit games", f.fourHit.length, bySide(f.fourHit, batterSide)],
+    ["5-RBI games", f.fiveRbi.length, bySide(f.fiveRbi, batterSide)],
+    ["3-steal games", f.threeSteal.length, bySide(f.threeSteal, batterSide)],
+  ].map(([k, v, counts]) => card(k, v, splitLine(counts))).join("");
+
+  // Only the side batting last can win it in its final at-bat, and the sides
+  // have never swapped in this rivalry — so a 0 there is structural, not a
+  // drought, and saying so stops it reading as a bug.
+  const sides = new Set(VIEW.games.map((g) => g.home));
+  $("rarest-note").textContent = sides.size === 1
+    ? `Immaculate innings and strike-outs of the side are credited to the pitching `
+      + `side. Walk-offs can only belong to whoever bats last, and ${[...sides][0]} `
+      + `has been the home team in all ${VIEW.games.length} of these games — so the `
+      + `other side cannot have one.`
+    : "Immaculate innings and strike-outs of the side are credited to the pitching side.";
 }
 
 function renderChase() {
