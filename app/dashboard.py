@@ -14,7 +14,9 @@ do for itself: reach out to the Show API for new games.
 """
 from __future__ import annotations
 
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 import streamlit as st
@@ -24,10 +26,40 @@ import streamlit.components.v1 as components
 # make the src/ layout importable without an editable install. Harmless locally.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from show_h2h import db, report  # noqa: E402
+from show_h2h import config, db, report  # noqa: E402
 
 st.set_page_config(page_title="The Rivalry — MLB The Show 26", page_icon="⚾",
                    layout="wide", initial_sidebar_state="collapsed")
+
+SEED = Path(__file__).resolve().parents[1] / "data" / "show.db"
+RUNTIME = Path(tempfile.gettempdir()) / "show-h2h" / "show.db"
+
+
+def use_writable_copy() -> None:
+    """Run against a copy of the database outside the repo.
+
+    The app writes to the database — schema migrations on boot, and the refresh
+    button. Streamlit Cloud redeploys by pulling, and a pull will not clobber a
+    locally-modified file, so writing to the committed copy left the deploy
+    permanently pinned to whatever database existed the first time the app ran.
+    That shipped: new code reading months-old tables, with the new pages simply
+    empty.
+
+    Re-seeded whenever the committed file is newer, so a push carries data
+    forward. Writes stay ephemeral, which is already how the refresh button is
+    documented.
+    """
+    RUNTIME.parent.mkdir(parents=True, exist_ok=True)
+    if SEED.exists() and (not RUNTIME.exists()
+                          or RUNTIME.stat().st_mtime < SEED.stat().st_mtime):
+        for sidecar in ("-wal", "-shm"):  # stale WAL against a fresh seed corrupts
+            Path(str(RUNTIME) + sidecar).unlink(missing_ok=True)
+        shutil.copy2(SEED, RUNTIME)
+    config.DB_PATH = RUNTIME
+    config.DATA_DIR = RUNTIME.parent
+
+
+use_writable_copy()
 db.init_db()
 
 # Strip Streamlit's chrome so the embedded page is the whole app: no toolbar

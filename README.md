@@ -52,6 +52,14 @@ the app is warm but are lost when it restarts, falling back to the committed
 seed. To make new games permanent, run `ingest refresh` locally and push the
 database.
 
+**The app never writes to the committed database.** On boot it copies
+`data/show.db` to a temp path and works there, re-seeding whenever the committed
+file is newer. This matters: the app writes on every boot (schema migrations)
+and Streamlit Cloud redeploys by pulling, and a pull will not overwrite a
+locally-modified file. Writing in place pinned the deploy to whatever database
+existed the first time the app ever ran — new code, stale tables, new pages
+silently empty.
+
 The **Which one are you?** control at the top switches whose side every number
 is written from, so both players get their own view of the rivalry.
 
