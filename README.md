@@ -27,6 +27,7 @@ uv run streamlit run app/dashboard.py         # the dashboard
 uv run python analysis/rivalry_report.py      # same thing as terminal text
 uv run python -m show_h2h.ingest refresh      # pull new games after a session
 uv run python -m show_h2h.ingest status       # what's in the database
+uv run python -m show_h2h.ingest parse-logs   # re-parse play-by-play (no network)
 ```
 
 `refresh` is the one to run regularly — it stops crawling as soon as it hits
@@ -126,6 +127,29 @@ Everything here was verified against live responses, not the docs.
   `SEASON_YEAR=25` and re-run to backfill an older season alongside.
 - No documented rate limits and no rate-limit headers, but SDS does throttle.
   Requests are spaced by `REQUEST_DELAY` (default 0.35s).
+- **The play-by-play has a trailer that restates plays.** After the innings comes
+  a legend, a perfect-contact list and the stadium/umpire block, and the plays it
+  mentions appear in the narrative too. Parse the whole blob and home runs come
+  out 57% high. `playbyplay.split_sections()` separates them.
+
+## What's only in the play-by-play
+
+There's no pitch-level endpoint, but the prose in `game_log` carries a lot the
+box score doesn't. Parsed into `pa_events` / `contact_events`:
+
+- **Pitch type and location on strikeouts** — 1,700-odd of them name both, so
+  you can see exactly where each hitter gets beaten. Only on strikeouts, so it's
+  not a full pitch mix.
+- **Swing timing** — chased, late, early, or caught looking.
+- **Home-run distance and direction**, in feet.
+- **Perfect-perfect contact with exit velocity** — the only batted-ball speed the
+  API exposes, and only for perfectly-struck balls. Includes what happened, so
+  you can count the ones that got caught anyway.
+- **Go-ahead and critical plays**, from colour codes in the markup.
+- Difficulty, weather and stadium per game, in `game_meta`.
+
+Totals are asserted against the box score in `_verify.py` — if the parse drifts,
+the strikeout and home-run counts stop matching.
 
 ## Layout
 
@@ -136,10 +160,12 @@ src/show_h2h/
   client.py       API client: throttling, retries, error-shaped-as-200 guards
   identity.py     who played whom — the CPU-masking and name-normalizing rules
   ingest.py       CLI
+  playbyplay.py   parses the play-by-play prose into structured events
   report.py       builds the page: queries the views, embeds the data as JSON
   importers/
     game_history.py   the game list, both accounts
     game_log.py       box scores; promotes natural_key -> real game_uuid
+    play_by_play.py   prose -> pa_events / contact_events (local, no network)
   schema.sql      tables + all the stat views
 app/
   report_template.html   THE UI — hand-written HTML/CSS/JS

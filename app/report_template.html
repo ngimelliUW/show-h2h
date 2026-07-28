@@ -256,10 +256,19 @@
   .feat .s { font-size: 12px; color: var(--muted); }
 
   .bars { display: flex; flex-direction: column; gap: 5px; padding: 12px; }
-  .bar-row { display: grid; grid-template-columns: 150px 1fr 46px; align-items: center; gap: 10px; }
+  .bar-row {
+    display: grid; grid-template-columns: minmax(120px, 210px) 1fr 92px;
+    align-items: center; gap: 10px;
+  }
   .bar-name { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .bar-track { background: var(--line-soft); border-radius: 3px; height: 15px; }
-  .bar-fill { height: 100%; border-radius: 3px; }
+  .bar-track {
+    background: var(--line-soft); border-radius: 3px; height: 15px;
+    display: block; overflow: hidden;
+  }
+  /* display:block matters — these are spans, and an inline element ignores
+     width and height, so the fill was invisible without it. */
+  .bar-fill { display: block; height: 100%; border-radius: 3px; }
+  .bar-val { white-space: nowrap; }
   .bar-val {
     font-family: var(--mono); font-variant-numeric: tabular-nums;
     font-size: 12.5px; text-align: right;
@@ -363,6 +372,46 @@
     <div class="card scroll"><table id="tbl-pit"></table></div>
     <h2>Top 12</h2>
     <div class="card"><div class="bars" id="bars-pit"></div></div>
+  </section>
+
+  <section id="tab-matchup" role="tabpanel" hidden>
+    <h2>How they put you away</h2>
+    <p class="note" id="ko-note"></p>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-head" id="ko-head-a"></div>
+        <div class="scroll"><table id="ko-a"></table></div>
+      </div>
+      <div class="card">
+        <div class="card-head" id="ko-head-b"></div>
+        <div class="scroll"><table id="ko-b"></table></div>
+      </div>
+    </div>
+    <p class="note">
+      Pitch type and location are only reported on strikeouts, so this is how you
+      get beaten — not a full pitch mix. Shading is relative to the busiest cell
+      in each table.
+    </p>
+
+    <h2>Plate discipline</h2>
+    <p class="note">
+      How each strikeout ended: <strong>chasing</strong> is a swing out of the
+      zone, <strong>looking</strong> is a called third strike, and early/late are
+      swing timing. Chasing less is the single most improvable number here.
+    </p>
+    <div class="card"><div class="bars" id="discipline"></div></div>
+
+    <h2>Perfect-perfect contact</h2>
+    <p class="note" id="pp-note"></p>
+    <div class="feats" id="pp-summary"></div>
+    <div class="card scroll" style="margin-top:12px"><table id="pp-table"></table></div>
+
+    <h2>Hardest balls hit</h2>
+    <p class="note">Every perfect-perfect ball, hardest first, and what came of it.</p>
+    <div class="card scroll"><table id="pp-hits"></table></div>
+
+    <h2>Longest home runs</h2>
+    <div class="card scroll"><table id="hr-table"></table></div>
   </section>
 
   <section id="tab-games" role="tabpanel" hidden>
@@ -525,6 +574,14 @@ function renderFeats() {
     ["Extra innings", played.filter((g) => g.inn > 9).length, "went past the 9th"],
     ["Ended early", played.filter((g) => g.early).length, "quit or disconnect"],
   ];
+  const clutch = DATA.clutch.find((c) => c.u === viewer);
+  if (clutch) {
+    cards.push(["Go-ahead plays", clutch.go_ahead,
+                `${clutch.go_ahead_hr} of them home runs`]);
+    cards.push(["Longest homer",
+                (DATA.homers.filter((h) => h.u === viewer)[0]?.ft ?? 0) + " ft",
+                "see the Matchup tab"]);
+  }
   $("feats").innerHTML = cards.map(([k, v, s]) =>
     `<div class="feat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
 }
@@ -663,8 +720,125 @@ function renderGames() {
     </tr>`).join("") + "</tbody>";
 }
 
+/* ---------------- matchup ---------------- */
+// Ordered so the tables read like a strike zone rather than alphabetically.
+const LOC_ORDER = ["high and in", "high", "high and away", "inside", "outside",
+                   "low and in", "low", "low and away", "away", "up and in", "up and away"];
+const TIMING_LABEL = {
+  chasing: "Chased", late: "Late", early: "Early",
+  looking: "Looking", swinging: "Swung through",
+};
+
+function koTable(el, batter, pitcher) {
+  const rows = DATA.koGrid.filter((r) => r.bat === batter && r.pit === pitcher);
+  if (!rows.length) { $(el).innerHTML = "<tbody><tr><td>No data yet.</td></tr></tbody>"; return 0; }
+  const types = [...new Set(rows.map((r) => r.type))];
+  const locs = LOC_ORDER.filter((l) => rows.some((r) => r.loc === l))
+    .concat([...new Set(rows.map((r) => r.loc))].filter((l) => !LOC_ORDER.includes(l)));
+  const at = (t, l) => rows.find((r) => r.type === t && r.loc === l)?.n || 0;
+  const total = rows.reduce((a, r) => a + r.n, 0);
+  types.sort((a, b) => locs.reduce((s, l) => s + at(b, l), 0) - locs.reduce((s, l) => s + at(a, l), 0));
+  const max = Math.max(...rows.map((r) => r.n), 1);
+  $(el).innerHTML =
+    `<thead><tr><th>Pitch</th>${locs.map((l) => `<th>${l}</th>`).join("")}<th>All</th></tr></thead><tbody>`
+    + types.map((t) => {
+        const sum = locs.reduce((s, l) => s + at(t, l), 0);
+        return `<tr><td class="name">${t}</td>${locs.map((l) => {
+          const v = at(t, l);
+          // Shade by share of the busiest cell so the hot spot is findable at a glance.
+          const bg = v ? `background:color-mix(in srgb, var(--away) ${Math.round(12 + 58 * v / max)}%, transparent)` : "";
+          return `<td style="${bg}">${v || ""}</td>`;
+        }).join("")}<td><strong>${sum}</strong></td></tr>`;
+      }).join("")
+    + `<tr><td class="name"><strong>All</strong></td>${locs.map((l) =>
+        `<td><strong>${types.reduce((s, t) => s + at(t, l), 0)}</strong></td>`).join("")}
+       <td><strong>${total}</strong></td></tr></tbody>`;
+  return total;
+}
+
+function renderMatchup() {
+  const you = viewer, them = opponentOf(viewer);
+  const a = koTable("ko-a", you, them);
+  const b = koTable("ko-b", them, you);
+  // The grids only hold strikeouts where the log named BOTH pitch and spot, so
+  // they undercount the box score. Say so rather than implying a total.
+  const allK = (u) => DATA.team[u]?.bat?.so ?? 0;
+  $("ko-head-a").textContent =
+    `${them} striking out ${you} — ${a} of ${allK(you)} with pitch detail`;
+  $("ko-head-b").textContent =
+    `${you} striking out ${them} — ${b} of ${allK(them)} with pitch detail`;
+  const mineK = allK(you), theirsK = allK(them);
+  $("ko-note").textContent =
+    `Where each strikeout finished, by pitch and spot. ${theirsK > mineK
+      ? `You've punched ${them} out ${theirsK - mineK} more times than the reverse.`
+      : theirsK < mineK ? `${them} has punched you out ${mineK - theirsK} more times than the other way round.`
+      : "Dead even."}`;
+
+  // discipline
+  const kinds = ["chasing", "late", "early", "looking", "swinging"];
+  const tot = (u) => DATA.koTiming.filter((r) => r.bat === u).reduce((s, r) => s + r.n, 0);
+  const val = (u, k) => DATA.koTiming.find((r) => r.bat === u && r.timing === k)?.n || 0;
+  const max = Math.max(...DATA.players.flatMap((u) => kinds.map((k) => val(u, k))), 1);
+  $("discipline").innerHTML = kinds.filter((k) => val(you, k) || val(them, k)).map((k) =>
+    DATA.players.map((u) => {
+      const v = val(u, k), pct = tot(u) ? (100 * v / tot(u)).toFixed(0) : 0;
+      return `<div class="bar-row">
+        <span class="bar-name">${u === you ? "You" : them} · ${TIMING_LABEL[k] || k}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:${Math.max(2, 100 * v / max)}%;background:${COLOR[u]}"></span></span>
+        <span class="bar-val">${v} · ${pct}%</span></div>`;
+    }).join("")).join("");
+
+  // perfect-perfect
+  const mine = DATA.perfect.filter((r) => r.u === you);
+  const theirs = DATA.perfect.filter((r) => r.u === them);
+  const sum = (rows, f) => rows.reduce((s, r) => s + (r[f] || 0), 0);
+  const card = (label, v, sub) =>
+    `<div class="feat"><div class="k">${label}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`;
+  const outs = sum(mine, "outs"), balls = sum(mine, "n");
+  $("pp-summary").innerHTML =
+    card("Your perfect-perfect", balls, `${them}: ${sum(theirs, "n")}`)
+    + card("Left the yard", sum(mine, "hr"), `${balls ? Math.round(100 * sum(mine, "hr") / balls) : 0}% of them`)
+    + card("Caught anyway", outs, "squared up, still out")
+    + card("Hardest you've hit", Math.max(...mine.map((r) => r.maxv), 0) + " mph",
+           `${them}: ${Math.max(...theirs.map((r) => r.maxv), 0)} mph`);
+  $("pp-note").textContent =
+    "Perfect timing and perfect PCI placement — the game logs these with an exit "
+    + "velocity. It's the only batted-ball speed the API gives up, and only for these.";
+
+  $("pp-table").innerHTML =
+    `<thead><tr><th>Player</th><th>Owner</th><th>PP</th><th>Max</th><th>Avg</th>
+     <th>HR</th><th>Hits</th><th>Outs</th></tr></thead><tbody>`
+    + DATA.perfect.slice(0, 25).map((r) => `<tr>
+        <td class="name">${r.p}</td>
+        <td class="owner"><span class="dot" style="background:${COLOR[r.u]}"></span>${r.u}</td>
+        <td>${r.n}</td><td>${r.maxv}</td><td>${num(r.avgv, 1)}</td>
+        <td>${r.hr}</td><td>${r.hits}</td><td>${r.outs}</td></tr>`).join("")
+    + "</tbody>";
+
+  $("pp-hits").innerHTML =
+    `<thead><tr><th>Player</th><th>Owner</th><th>Exit velo</th><th>Result</th><th>What happened</th></tr></thead><tbody>`
+    + DATA.perfectHits.map((r) => `<tr>
+        <td class="name">${r.p}</td>
+        <td class="owner"><span class="dot" style="background:${COLOR[r.u]}"></span>${r.u}</td>
+        <td>${r.mph} mph</td>
+        <td class="name ${r.res === "out" ? "l" : "w"}">${r.res}</td>
+        <td class="name" style="white-space:normal">${r.what}</td></tr>`).join("")
+    + "</tbody>";
+
+  $("hr-table").innerHTML =
+    `<thead><tr><th>Player</th><th>Owner</th><th>Distance</th><th>To</th><th>Date</th><th></th></tr></thead><tbody>`
+    + DATA.homers.slice(0, 25).map((r) => `<tr>
+        <td class="name">${r.p}</td>
+        <td class="owner"><span class="dot" style="background:${COLOR[r.u]}"></span>${r.u}</td>
+        <td>${r.ft} ft</td><td class="name">${r.dir}</td>
+        <td class="name">${r.d.slice(0, 10)}</td>
+        <td class="name">${r.ga ? '<span class="pill">go-ahead</span>' : ""}</td></tr>`).join("")
+    + "</tbody>";
+}
+
 /* ---------------- tabs ---------------- */
-const TABS = [["overview", "Overview"], ["hitters", "Hitters"], ["pitchers", "Pitchers"], ["games", "Games"]];
+const TABS = [["overview", "Overview"], ["matchup", "Matchup"], ["hitters", "Hitters"],
+              ["pitchers", "Pitchers"], ["games", "Games"]];
 function renderTabs() {
   $("tabs").innerHTML = TABS.map(([id, label]) =>
     `<button role="tab" data-t="${id}" aria-selected="${id === tab}">${label}</button>`).join("");
@@ -678,6 +852,7 @@ function showTab() {
 
 function renderAll() {
   renderBoard(); renderWhoami(); renderCompare(); renderFeats(); renderForm();
+  renderMatchup();
   controls("bat"); controls("pit");
   renderBoardTable("bat"); renderBoardTable("pit");
   renderGames(); renderTabs(); showTab();

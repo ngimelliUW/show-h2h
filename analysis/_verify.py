@@ -111,5 +111,40 @@ both = db.query("""SELECT COUNT(*) n FROM v_h2h_games
 check("0-0 games exist and are excluded from shutout counts by the dashboard",
       True, f"{both} such game(s)")
 
+# --- play-by-play parsing ---------------------------------------------------
+# The prose is the only source of pitch detail, and it contains a trailer that
+# restates plays. If the parse ever drifts, these two totals separate from the
+# box score — which is exactly how the double-counting bug was caught.
+pbp = db.query("""
+    SELECT
+      (SELECT COUNT(*) FROM pa_events e JOIN games g ON g.game_uuid=e.game_uuid
+        WHERE g.is_h2h=1 AND e.kind='home_run')  AS hr,
+      (SELECT COUNT(*) FROM pa_events e JOIN games g ON g.game_uuid=e.game_uuid
+        WHERE g.is_h2h=1 AND e.kind='strikeout') AS so,
+      (SELECT SUM(b.hr) FROM batting_lines b JOIN games g ON g.game_uuid=b.game_uuid
+        WHERE g.is_h2h=1) AS box_hr,
+      (SELECT SUM(b.so) FROM batting_lines b JOIN games g ON g.game_uuid=b.game_uuid
+        WHERE g.is_h2h=1) AS box_so
+""").iloc[0]
+check("parsed home runs match the box score", pbp.hr == pbp.box_hr, f"{pbp.hr} vs {pbp.box_hr}")
+check("parsed strikeouts match the box score", pbp.so == pbp.box_so, f"{pbp.so} vs {pbp.box_so}")
+
+check("every parsed event has an owner",
+      db.query("SELECT COUNT(*) n FROM pa_events WHERE batting_username IS NULL").iloc[0].n == 0)
+check("a strikeout's two sides are different people",
+      db.query("SELECT COUNT(*) n FROM pa_events "
+               "WHERE batting_username = pitching_username").iloc[0].n == 0)
+
+velo = db.query("SELECT MIN(exit_velo) lo, MAX(exit_velo) hi FROM contact_events").iloc[0]
+check("exit velocities are plausible", 50 <= velo.lo and velo.hi <= 130, f"{velo.lo}-{velo.hi} mph")
+dist = db.query("SELECT MIN(distance) lo, MAX(distance) hi FROM pa_events "
+                "WHERE kind='home_run'").iloc[0]
+check("home-run distances are plausible", 250 <= dist.lo and dist.hi <= 600, f"{dist.lo}-{dist.hi} ft")
+
+unattrib = db.query("SELECT COUNT(*) n FROM contact_events WHERE username IS NULL").iloc[0].n
+total_pp = db.query("SELECT COUNT(*) n FROM contact_events").iloc[0].n
+check("most perfect-perfect balls are attributed", unattrib / max(total_pp, 1) < 0.10,
+      f"{unattrib}/{total_pp} unattributed")
+
 print("\nALL PASS" if ok else "\nSOME CHECKS FAILED")
 raise SystemExit(0 if ok else 1)

@@ -59,6 +59,7 @@ def main(argv=None) -> int:
                         "played (several hundred more requests).")
     b.add_argument("--limit", type=int, help="Cap how many to fetch this run.")
 
+    sub.add_parser("parse-logs", help="Re-parse stored play-by-play into events (no network).")
     sub.add_parser("refresh", help="Incremental history + any missing H2H box scores.")
     sub.add_parser("status", help="Show what's in the database.")
 
@@ -88,8 +89,17 @@ def main(argv=None) -> int:
         print(f"  imported {res['imported']}, failed {res['failed']}, pending {res['pending']}")
         return 0 if res["failed"] == 0 else 1
 
+    if args.command == "parse-logs":
+        from show_h2h.importers import play_by_play
+
+        print("Parsing stored play-by-play ...")
+        res = play_by_play.run_import()
+        print(f"  {res['games']} games -> {res['events']} events, "
+              f"{res['contacts']} perfect-contact balls")
+        return 0
+
     if args.command == "refresh":
-        from show_h2h.importers import game_history, game_log
+        from show_h2h.importers import game_history, game_log, play_by_play
 
         print("Refreshing ...")
         ok = True
@@ -106,6 +116,12 @@ def main(argv=None) -> int:
         except Exception as e:
             ok = False
             print(f"  box scores: FAILED — {e}")
+        try:
+            res = play_by_play.run_import()
+            print(f"  play-by-play: {res['events']} events from {res['games']} games")
+        except Exception as e:
+            ok = False
+            print(f"  play-by-play: FAILED — {e}")
         _status()
         return 0 if ok else 1
 

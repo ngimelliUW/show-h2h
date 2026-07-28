@@ -163,6 +163,61 @@ CREATE TABLE IF NOT EXISTS game_log_text (
 );
 
 
+-- Events pulled out of the play-by-play prose (see playbyplay.py). The API has
+-- no pitch-level endpoint; this is the only place pitch type, location and
+-- swing timing exist. Rebuilt from game_log_text, so re-parsing never re-crawls.
+--
+-- Both usernames are stored because a strikeout has two owners: the batter who
+-- was beaten and the pitcher who did it. "How he gets you out" needs the pair.
+CREATE TABLE IF NOT EXISTS pa_events (
+    game_uuid         TEXT NOT NULL,
+    idx               INTEGER NOT NULL,   -- order within the game
+    inning            INTEGER,
+    squad             TEXT,
+    batting_username  TEXT COLLATE NOCASE,
+    pitching_username TEXT COLLATE NOCASE,
+    batter            TEXT,
+    kind              TEXT,               -- 'strikeout' | 'home_run'
+    pitch_type        TEXT,               -- strikeouts only
+    location          TEXT,               -- strikeouts only
+    timing            TEXT,               -- chasing | late | early | looking | swinging
+    distance          INTEGER,            -- home runs only, feet
+    direction         TEXT,               -- home runs only
+    critical          INTEGER NOT NULL DEFAULT 0,
+    scored            INTEGER NOT NULL DEFAULT 0,
+    go_ahead          INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (game_uuid, idx)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pa_kind ON pa_events(kind, batting_username);
+
+
+-- "Perfect Contact Hits (Perfect-Perfect)" from the log's trailer: the only
+-- exit-velocity data the API exposes, and only for perfectly-struck balls —
+-- never a full batted-ball set.
+CREATE TABLE IF NOT EXISTS contact_events (
+    game_uuid   TEXT NOT NULL,
+    idx         INTEGER NOT NULL,
+    batter      TEXT,
+    username    TEXT COLLATE NOCASE,      -- resolved via that game's box score
+    exit_velo   INTEGER,                  -- mph
+    outcome     TEXT,                     -- the log's own wording
+    result      TEXT,                     -- home run | triple | double | single | out
+    PRIMARY KEY (game_uuid, idx)
+);
+
+
+-- Per-game context from the trailer. Difficulty is here because the games were
+-- not all played on the same one.
+CREATE TABLE IF NOT EXISTS game_meta (
+    game_uuid           TEXT PRIMARY KEY,
+    hitting_difficulty  TEXT,
+    pitching_difficulty TEXT,
+    stadium             TEXT,
+    weather             TEXT
+);
+
+
 CREATE TABLE IF NOT EXISTS import_log (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     source       TEXT,
@@ -282,6 +337,52 @@ FROM pitching_lines p
 JOIN games g ON g.game_uuid = p.game_uuid
 WHERE g.is_h2h = 1
 GROUP BY p.username;
+
+
+-- How each pitcher puts each batter away: type, spot, and how the hitter was
+-- beaten. Grouped by the pair, because "what he strikes me out with" and "what
+-- I strike him out with" are different questions.
+DROP VIEW IF EXISTS v_strikeouts;
+CREATE VIEW v_strikeouts AS
+SELECT
+    e.batting_username, e.pitching_username,
+    e.pitch_type, e.location, e.timing, e.batter,
+    COUNT(*) AS n
+FROM pa_events e
+JOIN games g ON g.game_uuid = e.game_uuid
+WHERE g.is_h2h = 1 AND e.kind = 'strikeout'
+GROUP BY e.batting_username, e.pitching_username, e.pitch_type, e.location,
+         e.timing, e.batter;
+
+
+-- Every home run with its distance, direction and whether it put you ahead.
+DROP VIEW IF EXISTS v_home_runs;
+CREATE VIEW v_home_runs AS
+SELECT
+    e.game_uuid, e.batting_username AS username, e.batter,
+    e.distance, e.direction, e.inning, e.go_ahead, g.display_date
+FROM pa_events e
+JOIN games g ON g.game_uuid = e.game_uuid
+WHERE g.is_h2h = 1 AND e.kind = 'home_run' AND e.distance IS NOT NULL;
+
+
+-- Perfect-perfect contact per card: how often, how hard, and what came of it.
+-- The out column is the interesting one — squaring a ball up perfectly and
+-- still making an out is the most quotable thing in this dataset.
+DROP VIEW IF EXISTS v_perfect_contact;
+CREATE VIEW v_perfect_contact AS
+SELECT
+    c.username, c.batter,
+    COUNT(*)                                        AS n,
+    MAX(c.exit_velo)                                AS max_velo,
+    ROUND(AVG(c.exit_velo), 1)                      AS avg_velo,
+    SUM(c.result = 'home run')                      AS hr,
+    SUM(c.result IN ('single', 'double', 'triple')) AS hits,
+    SUM(c.result = 'out')                           AS outs
+FROM contact_events c
+JOIN games g ON g.game_uuid = c.game_uuid
+WHERE g.is_h2h = 1 AND c.username IS NOT NULL
+GROUP BY c.username, c.batter;
 
 
 -- Batting leaderboard across head-to-head games, per owner.

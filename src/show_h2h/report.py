@@ -74,6 +74,46 @@ def build() -> dict:
         FROM v_coop_games ORDER BY played_at DESC
     """)
 
+    # --- from the play-by-play (see playbyplay.py) ---
+    # Strikeouts keyed by both owners: "what he beats me with" and "what I beat
+    # him with" are separate questions off the same rows.
+    ko_grid = _rows("""
+        SELECT batting_username AS bat, pitching_username AS pit,
+               pitch_type AS type, location AS loc, SUM(n) AS n
+        FROM v_strikeouts WHERE pitch_type IS NOT NULL AND location IS NOT NULL
+        GROUP BY bat, pit, type, loc
+    """)
+    ko_timing = _rows("""
+        SELECT batting_username AS bat, timing, SUM(n) AS n
+        FROM v_strikeouts WHERE timing IS NOT NULL GROUP BY bat, timing
+    """)
+    homers = _rows("""
+        SELECT username AS u, batter AS p, distance AS ft, direction AS dir,
+               go_ahead AS ga, display_date AS d
+        FROM v_home_runs ORDER BY distance DESC
+    """)
+    perfect = _rows("""
+        SELECT username AS u, batter AS p, n, max_velo AS maxv, avg_velo AS avgv,
+               hr, hits, outs
+        FROM v_perfect_contact ORDER BY n DESC, maxv DESC
+    """)
+    perfect_hits = _rows("""
+        SELECT c.username AS u, c.batter AS p, c.exit_velo AS mph, c.result AS res,
+               c.outcome AS what, g.display_date AS d
+        FROM contact_events c JOIN games g ON g.game_uuid = c.game_uuid
+        WHERE g.is_h2h = 1 AND c.username IS NOT NULL
+        ORDER BY c.exit_velo DESC LIMIT 40
+    """)
+    clutch = _rows("""
+        SELECT batting_username AS u,
+               SUM(go_ahead) AS go_ahead,
+               SUM(critical)  AS critical,
+               SUM(kind = 'home_run' AND go_ahead = 1) AS go_ahead_hr
+        FROM pa_events e JOIN games g ON g.game_uuid = e.game_uuid
+        WHERE g.is_h2h = 1 AND batting_username IS NOT NULL
+        GROUP BY batting_username
+    """)
+
     latest = db.query("SELECT MAX(played_at) d FROM games WHERE is_h2h = 1").iloc[0]["d"]
     return {
         "players": [me, them],
@@ -84,6 +124,12 @@ def build() -> dict:
         "pitching": pitching,
         "team": team,
         "coop": coop,
+        "koGrid": ko_grid,
+        "koTiming": ko_timing,
+        "homers": homers,
+        "perfect": perfect,
+        "perfectHits": perfect_hits,
+        "clutch": clutch,
     }
 
 
