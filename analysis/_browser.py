@@ -80,6 +80,18 @@ with sync_playwright() as pw:
         check(f"[{label}] you-are switch flips the verdict", before != after,
               f"{before!r} -> {after!r}")
 
+        # the window slider must re-derive the record, not just relabel itself
+        wide = frame.query_selector("#verdict").inner_text()
+        frame.evaluate("""() => { const s = document.getElementById('window-range');
+            s.value = 10; s.dispatchEvent(new Event('input', {bubbles: true})); }""")
+        page.wait_for_timeout(900)
+        narrow = frame.query_selector("#verdict").inner_text()
+        check(f"[{label}] window slider changes the record", wide != narrow,
+              f"{wide!r} -> {narrow!r}")
+        check(f"[{label}] leaderboards survive a narrow window",
+              frame.evaluate("() => document.querySelectorAll('#tbl-bat tbody tr').length") > 0,
+              "qualifiers must scale with the window")
+
         # ignore 404s for favicons and similar static noise
         real = [e for e in errors if "Failed to load resource" not in e]
         check(f"[{label}] no JavaScript errors", not real, "; ".join(real[:3]))

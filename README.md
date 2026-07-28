@@ -69,9 +69,11 @@ silently empty.
 Two controls in the scoreboard drive the whole page:
 
 - **You are** switches whose side every number is written from.
-- **Window** limits every stat — record, leaderboards, pitch grid, contact
-  quality — to the last 10, 25 or 50 games. Playing-time qualifiers scale with
-  it, or a 50-AB minimum over ten games would qualify nobody.
+- **Window** is a slider limiting every stat — record, leaderboards, pitch grid,
+  contact quality — to any number of recent games, with one-tap presets because
+  dragging to an exact 10 on a 111-wide track is fiddly on a phone. Playing-time
+  qualifiers scale with it, or a 50-AB minimum over ten games would qualify
+  nobody and every leaderboard would come up empty.
 
 The window is why the page carries per-game rows rather than totals: the browser
 re-aggregates on every change. Those rows are column-encoded (names once,

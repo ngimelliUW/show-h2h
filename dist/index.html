@@ -132,6 +132,38 @@
     font-size: 17px; font-weight: 600;
   }
 
+  /* ---------- window slider ---------- */
+  .window-row {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    border-top: 1px solid rgba(255,255,255,.1); margin-top: 12px; padding-top: 12px;
+  }
+  .window-label {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 13px; color: var(--on-ground); min-width: 12ch;
+  }
+  #window-range {
+    flex: 1 1 220px; min-width: 160px; appearance: none; -webkit-appearance: none;
+    height: 22px; background: transparent; cursor: pointer;
+  }
+  #window-range::-webkit-slider-runnable-track {
+    height: 4px; border-radius: 2px; background: rgba(255,255,255,.22);
+  }
+  #window-range::-moz-range-track {
+    height: 4px; border-radius: 2px; background: rgba(255,255,255,.22);
+  }
+  /* Big enough to grab on a touchscreen; the track alone is a 4px target. */
+  #window-range::-webkit-slider-thumb {
+    appearance: none; -webkit-appearance: none; margin-top: -8px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--amber); border: 0; cursor: grab;
+  }
+  #window-range::-moz-range-thumb {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--amber); border: 0; cursor: grab;
+  }
+  #window-range:focus-visible { outline: 2px solid var(--amber); outline-offset: 4px; }
+  .seg.quick button { padding: 5px 11px; font-size: 12px; }
+
   /* ---------- who am I ---------- */
   .whoami { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .whoami-label {
@@ -311,12 +343,15 @@
       </div>
     </div>
     <div class="verdict" id="verdict"></div>
+    <div class="window-row">
+      <span class="whoami-label">Window</span>
+      <input type="range" id="window-range" min="5" step="1"
+             aria-label="Limit every stat on the page to this many recent games">
+      <span class="window-label" id="window-label"></span>
+      <span class="seg quick" id="window-quick" role="group" aria-label="Jump to a common window"></span>
+    </div>
     <div class="board-meta">
       <div class="stat-strip" id="strip"></div>
-      <div class="whoami">
-        <span class="whoami-label">Window</span>
-        <div class="seg" id="window" role="group" aria-label="Limit every stat to recent games"></div>
-      </div>
       <div class="whoami">
         <span class="whoami-label">You are</span>
         <div class="seg" id="whoami" role="group" aria-label="Choose which player you are"></div>
@@ -677,25 +712,61 @@ function renderWhoami() {
     b.addEventListener("click", () => { viewer = b.dataset.p; renderAll(); }));
 }
 
-// Offer only windows the record can actually fill, so "Last 50" never appears
-// against 30 games and quietly means the same as "All".
+function windowLabel() {
+  const total = DATA.games.length;
+  return window_ === 0 ? `All ${total} games` : `Last ${window_} games`;
+}
+
+function applyWindow(n) {
+  // The slider's top notch means "everything", which is 0 internally so the
+  // window keeps meaning "all games" as more get played.
+  window_ = (n >= DATA.games.length) ? 0 : n;
+  rebuildView();
+  // Rescale the playing-time floors before anything renders — a 50-AB minimum
+  // over ten games qualifies nobody, and an empty table reads as breakage.
+  state.bat.min = scaledMin("bat");
+  state.pit.min = scaledMin("pit");
+  renderAll();
+}
+
+// Only the slider label needs to keep up with a drag; the aggregation behind it
+// is ~3 ms, so re-deriving on every input event is affordable, but coalescing
+// to an animation frame keeps a fast drag from queueing work it will discard.
+let pendingWindow = null;
+function scheduleWindow(n) {
+  $("window-label").textContent =
+    n >= DATA.games.length ? `All ${DATA.games.length} games` : `Last ${n} games`;
+  if (pendingWindow !== null) { pendingWindow = n; return; }
+  pendingWindow = n;
+  requestAnimationFrame(() => {
+    const value = pendingWindow;
+    pendingWindow = null;
+    applyWindow(value);
+  });
+}
+
+// Dragging to an exact 10 on a 111-wide track is fiddly, especially on a phone,
+// so the common windows stay one tap away.
 function renderWindow() {
   const total = DATA.games.length;
-  const options = [10, 25, 50].filter((n) => n < total).map((n) => [n, `Last ${n}`]);
-  options.push([0, `All ${total}`]);
-  $("window").innerHTML = options
+  const slider = $("window-range");
+  slider.max = total;
+  slider.value = window_ === 0 ? total : window_;
+  $("window-label").textContent = windowLabel();
+
+  if (!slider.dataset.bound) {
+    slider.dataset.bound = "1";
+    slider.addEventListener("input", () => scheduleWindow(Number(slider.value)));
+  }
+
+  const presets = [10, 25, 50].filter((n) => n < total).map((n) => [n, n])
+    .concat([[0, "All"]]);
+  $("window-quick").innerHTML = presets
     .map(([n, label]) =>
       `<button type="button" data-n="${n}" aria-pressed="${n === window_}">${label}</button>`)
     .join("");
-  $("window").querySelectorAll("button").forEach((b) =>
-    b.addEventListener("click", () => {
-      window_ = Number(b.dataset.n);
-      rebuildView();
-      // Rescale the qualifiers to the new window before anything renders.
-      state.bat.min = scaledMin("bat");
-      state.pit.min = scaledMin("pit");
-      renderAll();
-    }));
+  $("window-quick").querySelectorAll("button").forEach((b) =>
+    b.addEventListener("click", () => applyWindow(Number(b.dataset.n) || DATA.games.length)));
 }
 
 /* ---------------- overview ---------------- */
