@@ -22,8 +22,10 @@ def scoreboard_html(viewer: str) -> str:
     at.run()
     if at.exception:
         raise SystemExit(f"app raised for {viewer}: {at.exception[0].message}")
-    # The record lives in the injected scoreboard block, not in st.metric.
-    return next(str(m.value) for m in at.markdown if 'class="sb"' in str(m.value))
+    # The record lives in injected HTML rather than st.metric, and the strip is
+    # a separate block so the "you are" toggle can sit beside it — so join every
+    # markdown block and parse the lot.
+    return "\n".join(str(m.value) for m in at.markdown)
 
 
 def parse(html: str) -> dict:

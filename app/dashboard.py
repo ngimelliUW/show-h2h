@@ -33,11 +33,11 @@ st.markdown(theme.CSS, unsafe_allow_html=True)
 # This lives in the main body, not the sidebar: Streamlit collapses the sidebar
 # behind a hamburger on phones, and "which of us am I" is the first thing either
 # player needs to set.
-VIEWER = st.segmented_control(
-    "Which one are you?", [config.MY_USERNAME, config.FRIEND_USERNAME],
-    default=config.MY_USERNAME, key="viewer",
-    help="Switches whose side every number on the page is written from."
-    ) or config.MY_USERNAME
+# The widget itself is rendered later, inside the scoreboard band — but its
+# value is needed up here to build the board. Streamlit puts a keyed widget's
+# value in session_state before the script reruns, so reading it first and
+# rendering it further down is safe.
+VIEWER = st.session_state.get("viewer") or config.MY_USERNAME
 ME = VIEWER
 THEM = config.FRIEND_USERNAME if VIEWER == config.MY_USERNAME else config.MY_USERNAME
 FLIPPED = VIEWER != config.MY_USERNAME
@@ -327,21 +327,30 @@ _cur, _kind, _bw, _bl = streaks(_res)
 _last10 = _res[-10:]
 _rf, _ra = int(_all["my_runs"].sum()), int(_all["their_runs"].sum())
 
-st.markdown(
-    theme.scoreboard(
-        ME, THEM, _w, _l,
-        [("Games", len(_all)),
-         ("Run diff", f"{_rf - _ra:+d}"),
-         ("Runs", f"{_rf}–{_ra}"),
-         ("Streak", f"{_cur}{_kind}"),
-         ("Longest", f"{_bw}W · {_bl}L"),
-         ("Last 10", f"{_last10.count('W')}–{_last10.count('L')}")],
-        PLAYER_COLORS[ME], PLAYER_COLORS[THEM]),
-    unsafe_allow_html=True)
+with st.container(key="scoreboard"):
+    st.markdown(theme.scoreboard_top(ME, THEM, _w, _l,
+                                     PLAYER_COLORS[ME], PLAYER_COLORS[THEM]),
+                unsafe_allow_html=True)
+    _strip_col, _who_col = st.columns([3, 1], vertical_alignment="bottom")
+    _strip_col.markdown(
+        theme.strip_only(
+            [("Games", len(_all)),
+             ("Run diff", f"{_rf - _ra:+d}"),
+             ("Runs", f"{_rf}–{_ra}"),
+             ("Streak", f"{_cur}{_kind}"),
+             ("Longest", f"{_bw}W · {_bl}L"),
+             ("Last 10", f"{_last10.count('W')}–{_last10.count('L')}")]),
+        unsafe_allow_html=True)
+    with _who_col:
+        st.segmented_control(
+            "You are", [config.MY_USERNAME, config.FRIEND_USERNAME],
+            default=config.MY_USERNAME, key="viewer",
+            help="Switches whose side every number on the page is written from.")
 
 PAGES = ["Rivalry", "Feats", "Hitters", "Pitchers", "Games"]
-page = st.segmented_control("Page", PAGES, default="Rivalry", key="page",
-                            label_visibility="collapsed") or "Rivalry"
+with st.container(key="nav"):
+    page = st.segmented_control("Page", PAGES, default="Rivalry", key="page",
+                                label_visibility="collapsed") or "Rivalry"
 
 # Pulling straight from the API keeps the hosted copy genuinely live rather than
 # a snapshot — the crawl is incremental, so it stops as soon as it reaches games
@@ -393,18 +402,10 @@ if page == "Rivalry":
     tp = q("SELECT * FROM v_team_pitching").set_index("username")
 
     def row(label, a, b, lower_better=False, fmt=str):
-        """One comparison row, winner's cell bolded."""
+        """One comparison row as (yours, stat name, theirs, you won, they won)."""
         a_wins = (a < b) if lower_better else (a > b)
-        fa, fb = fmt(a), fmt(b)
-        return (label,
-                f"**{fa}**" if a_wins else fa,
-                f"**{fb}**" if not a_wins and a != b else fb)
-
-    def md_table(rows):
-        """Hand-rolled markdown so cells can carry bold — st.dataframe can't,
-        and pandas.to_markdown would pull in tabulate as a dependency."""
-        head = f"| | {ME} | {THEM} |\n|---|---:|---:|\n"
-        return head + "\n".join(f"| {a} | {b} | {c} |" for a, b, c in rows)
+        b_wins = (b < a) if lower_better else (b > a)
+        return (fmt(a), label, fmt(b), a_wins, b_wins)
 
     if ME in tb.index and THEM in tb.index:
         bat_rows = [
@@ -424,14 +425,14 @@ if page == "Rivalry":
                 lambda v: f"{v:.2f}"),
             row("Strikeouts", tp.loc[ME, "so"], tp.loc[THEM, "so"], fmt=lambda v: f"{int(v)}"),
         ]
+        st.caption(f"{ME} on the left, {THEM} on the right. Bold is the better mark. "
+                   f"Totals are every card either of you played across all "
+                   f"{len(games)} games.")
         bcol, pcol = st.columns(2)
-        with bcol:
-            st.markdown("**Batting**")
-            st.markdown(md_table(bat_rows))
-        with pcol:
-            st.markdown("**Pitching**")
-            st.markdown(md_table(pit_rows))
-        st.caption("Totals across both rosters in head-to-head games. Bold is the better mark.")
+        bcol.markdown(theme.cmp_table("Batting — both rosters", bat_rows),
+                      unsafe_allow_html=True)
+        pcol.markdown(theme.cmp_table("Pitching — both staffs", pit_rows),
+                      unsafe_allow_html=True)
 
     st.divider()
 
