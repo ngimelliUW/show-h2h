@@ -59,28 +59,42 @@ git commit -am "refresh data" && git push
 
 ### Nightly refresh
 
-`.github/workflows/nightly-refresh.yml` pulls new games at **2am America/Chicago**
-and commits `data/seed.db`, which is what makes new games permanent — the app's
+`scripts/nightly-refresh.sh` pulls new games at **02:00**, verifies them, and
+commits `data/seed.db` — which is what makes new games permanent, since the app's
 own button writes to Streamlit Cloud's ephemeral disk and is lost on restart.
 
-GitHub cron is UTC and has no notion of daylight saving, so the workflow is
-scheduled at both 07:00 and 08:00 UTC and exits immediately on whichever one
-isn't 02:00 in Chicago. Without that it would drift an hour twice a year.
+Scheduled by `~/Library/LaunchAgents/com.show-h2h.nightly-refresh.plist`. The
+machine is on `America/Chicago` and launchd honours local time through daylight
+saving, so it stays 2am Central without the twice-a-year drift a UTC cron would
+have. If the Mac is asleep at 2am, launchd runs the job on the next wake.
+
+```bash
+launchctl print gui/$(id -u)/com.show-h2h.nightly-refresh   # is it loaded?
+launchctl kickstart -k gui/$(id -u)/com.show-h2h.nightly-refresh  # run it now
+tail -f ~/Library/Logs/show-h2h/refresh.log
+launchctl bootout gui/$(id -u)/com.show-h2h.nightly-refresh  # remove it
+```
+
+**It can't run in GitHub Actions.** The Show API returns **403 to GitHub's
+runners** — verified with four different User-Agents including a real browser
+one, so it's the datacenter IP range, not the client. A workflow was written and
+deleted; don't rewrite it. Any host that isn't a residential connection will
+likely hit the same wall.
 
 It publishes only if the data actually changed, and only if every check passes:
 
-1. seed `data/show.db` from the published seed, so the crawl stays incremental
+1. abort if `data/seed.db` already has uncommitted changes
 2. `ingest refresh` + `parse-logs`
 3. compare row counts — no change means no commit, since a SQLite file's bytes
    differ on every checkpoint even when no row does
 4. `_verify.py` and `_flip.py` must pass
 5. `ingest snapshot`, which **refuses to publish a database with fewer rows** than
    the one it's replacing, so a half-failed crawl can't delete history
-6. `_smoke.py`, then commit
+6. `_smoke.py`, then commit and push
 
 Rehearse the whole thing against a throwaway copy with
 `uv run python analysis/_nightly.py` — it drives the real commands and asserts
-the failure modes, including that verification *fails* on a damaged database.
+each failure mode, including that verification *fails* on a damaged database.
 
 **The app never writes to the committed database.** `data/seed.db` is a
 published snapshot written by `ingest snapshot`; the CLI's working database
