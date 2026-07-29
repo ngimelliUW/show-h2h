@@ -1,0 +1,27 @@
+name: Probe the Show API
+
+# Temporary diagnostic: the nightly refresh gets HTTP 403 from GitHub's runners
+# while the same request succeeds from a laptop. This works out whether the
+# block is on the User-Agent (fixable) or the runner's IP range (not).
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Try a few User-Agents
+        run: |
+          URL="https://mlb26.theshow.com/apis/game_history.json?page=1&username=LinguiniEater&platform=psn&mode=all"
+          try() {
+            code=$(curl -s -o /tmp/body -w '%{http_code}' -A "$1" "$URL" || echo "000")
+            printf '%-4s  %s\n' "$code" "$2"
+            if [ "$code" = "200" ]; then head -c 120 /tmp/body; echo; fi
+          }
+          try "show-h2h/0.1 (personal head-to-head stats; local use)" "the client's current UA"
+          try "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36" "a desktop browser UA"
+          try "curl/8.0" "plain curl"
+          try "" "no UA at all"
+          echo "--- runner egress IP:"
+          curl -s https://api.ipify.org || true
+          echo
