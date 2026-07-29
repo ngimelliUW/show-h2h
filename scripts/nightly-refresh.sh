@@ -28,6 +28,17 @@ fail() { say "ABORTED — $*"; exit 1; }
 say "=== nightly refresh starting"
 cd "$REPO" || fail "cannot enter $REPO"
 
+# A run can leave a commit stranded. On 2026-07-29 this job committed at 06:47
+# and the machine slept during `git push`, killing the process before it could
+# even log the failure — so the work was done, the site never saw it, and
+# nothing said so. Clear any backlog first and the next run heals itself.
+git fetch -q origin main 2>/dev/null
+behind=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)
+if [ "${behind:-0}" -gt 0 ]; then
+  say "pushing $behind commit(s) stranded by an earlier run"
+  git push -q origin main && say "backlog pushed" || say "WARNING — backlog still unpushed"
+fi
+
 # Don't fight a dirty tree; a half-finished edit shouldn't be committed by a
 # background job.
 if ! git diff --quiet -- data/seed.db; then

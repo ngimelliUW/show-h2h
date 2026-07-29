@@ -216,20 +216,29 @@ Everything here was verified against live responses, not the docs.
 
 The Overview tab tracks what nobody has managed yet, each with the nearest miss,
 because a bare zero says nothing about whether a feat is imminent or absurd.
-Still outstanding: perfect game, no-hitter, the cycle (nobody has more than 3 of
-the 4 hits — triples are the bottleneck, 20 in 2,011 batting lines), a 3-homer
-game (best is 2), and a 20-strikeout game (best is 18). Anything achieved drops
-off the list automatically.
+Still outstanding: perfect game, no-hitter, **grand slam** (11 three-run homers,
+never a fourth runner on), **triple play** (142 double plays turned, none has
+become three), the cycle (nobody has more than 3 of the 4 hits — triples are the
+bottleneck, 20 in 2,011 batting lines), a 3-homer game (best is 2), and a
+20-strikeout game (best is 18). Anything achieved drops off the list
+automatically.
 
 Alongside it, the rarest things that *have* happened: 3 immaculate innings
 (three strikeouts on exactly nine pitches — only detectable because the log
-prints a pitch count per half-inning), 102 strike-out-the-sides, 15 walk-offs.
+prints a pitch count per half-inning), 102 strike-out-the-sides, 15 walk-offs,
+142 double plays.
 
-A
-complete game means one pitcher recorded every out his side made in a game that
-went the full nine — the five- and six-inning games in this record ended early,
-and a no-hitter in a shortened game isn't one, which is why the count is 48 and
-not 58.
+**Neither a grand slam nor a triple play has ever occurred here, so neither
+detector has ever been seen to fire against real data.** A card that always
+reads zero is indistinguishable from a card that is broken, so `_verify.py`
+feeds both a fabricated inning and asserts they light up — including the
+attribution, since a slam belongs to the side batting and a triple play to the
+side in the field.
+
+A complete game means one pitcher recorded every out his side made in a game
+that went the full nine — the five- and six-inning games in this record ended
+early, and a no-hitter in a shortened game isn't one, which is why the count is
+48 and not 58.
 
 Baserunners allowed is hits + walks + hit batsmen + the pitching side's errors.
 That last term is a stand-in: the box score reports how many errors a side made,
@@ -247,6 +256,15 @@ box score doesn't. Parsed into `pa_events` / `contact_events`:
   not a full pitch mix.
 - **Swing timing** — chased, late, early, or caught looking.
 - **Home-run distance and direction**, in feet.
+- **RBI on a home run** — never stated, but the log prints one "`<Runner>
+  scores.`" sentence per runner behind the batter, so the count is 1 + those.
+  Four is a grand slam; the phrase itself appears nowhere in the log. The
+  trailer independently states an RBI figure for perfect-perfect balls, which
+  covers 139 of the home runs and agrees with this count on every one.
+- **Turned double and triple plays**, per half-inning, read off the scorer's tag
+  (`(4-6-3 DP)`) rather than the prose — 14 of the 142 double plays are
+  strike-'em-out-throw-'em-out, written without the words "double play" at all.
+  The box score has no double-play column, so this is the only source.
 - **Perfect-perfect contact with exit velocity** — the only batted-ball speed the
   API exposes, and only for perfectly-struck balls. Includes what happened, so
   you can count the ones that got caught anyway.

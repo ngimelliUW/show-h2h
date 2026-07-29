@@ -69,11 +69,12 @@ def _import_one(conn, game_uuid: str, text: str) -> tuple[int, int]:
         pitching = next((u for u in everyone if u != batting), None) if batting else None
         conn.execute(
             """INSERT INTO half_innings (game_uuid, idx, inning, squad, batting_username,
-                   pitching_username, runs, hits, walks, errors, pitches, lob, strikeouts)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                   pitching_username, runs, hits, walks, errors, pitches, lob, strikeouts,
+                   double_plays, triple_plays)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (game_uuid, idx, h["inning"], h["squad"], batting, pitching,
              h["runs"], h["hits"], h["walks"], h["errors"], h["pitches"],
-             h["lob"], h["strikeouts"]))
+             h["lob"], h["strikeouts"], h["double_plays"], h["triple_plays"]))
 
     for idx, e in enumerate(parsed["events"]):
         batting = squads.get((e["squad"] or "").strip())
@@ -82,11 +83,11 @@ def _import_one(conn, game_uuid: str, text: str) -> tuple[int, int]:
         conn.execute(
             """INSERT INTO pa_events (game_uuid, idx, inning, squad, batting_username,
                    pitching_username, batter, kind, pitch_type, location, timing,
-                   distance, direction, critical, scored, go_ahead)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                   distance, direction, rbi, critical, scored, go_ahead)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (game_uuid, idx, e["inning"], e["squad"], batting, pitching, e["batter"],
              e["kind"], e["pitch_type"], e["location"], e["timing"], e["distance"],
-             e["direction"], e["critical"], e["scored"], e["go_ahead"]))
+             e["direction"], e["rbi"], e["critical"], e["scored"], e["go_ahead"]))
 
     for idx, c in enumerate(parsed["perfect"]):
         # Prefer the squad the parser recovered from the narrative; fall back to

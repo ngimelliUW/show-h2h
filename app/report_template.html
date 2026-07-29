@@ -652,6 +652,20 @@ function rareFeats(games) {
   const bat = LINES.bat.filter((r) => games.has(r.g));
   const pit = LINES.pit.filter((r) => games.has(r.g));
   const hi = LINES.hi.filter((r) => games.has(r.g));
+  const pa = LINES.pa.filter((r) => games.has(r.g));
+
+  // A grand slam is a home run that drove in four. The log never writes the
+  // phrase, so the count comes from the runners it says scored behind the
+  // batter — see rbi_for_homer in playbyplay.py.
+  const homers = pa.filter((r) => r.k === "home_run" && r.rb);
+  const slams = homers.filter((r) => r.rb >= 4);
+  const bigHomer = homers.reduce((a, r) => (!a || r.rb > a.rb ? r : a), null);
+  const threeRun = homers.filter((r) => r.rb === 3);
+
+  // Triple plays are credited to the side in the field, which is the other one
+  // from the side each half-inning row says was batting.
+  const triplePlays = hi.reduce((a, r) => a + (r.tp || 0), 0);
+  const doublePlays = hi.reduce((a, r) => a + (r.dp || 0), 0);
 
   // A cycle needs a single, a double, a triple and a homer in one game.
   // Triples are the bottleneck: they're the rarest hit in the record by far.
@@ -692,6 +706,8 @@ function rareFeats(games) {
     cycles, bestCycle, bestCycleBy: bestOf(bat, legs),
     threeHr: bat.filter((r) => r.hr >= 3), mostHr, mostHrBy: bestOf(bat, (r) => r.hr || 0),
     twentyK: pit.filter((r) => r.so >= 20), mostK, mostKBy: bestOf(pit, (r) => r.so || 0),
+    slams, bigHomer, threeRun, triplePlays, doublePlays,
+    dpRows: hi.filter((r) => r.dp),
     immaculate, strikeSide, walkoffs,
     fourHit: bat.filter((r) => r.h >= 4), mostHits, mostHitsBy: bestOf(bat, (r) => r.h || 0),
     fiveRbi: bat.filter((r) => r.rbi >= 5), mostRbi, mostRbiBy: bestOf(bat, (r) => r.rbi || 0),
@@ -701,12 +717,14 @@ function rareFeats(games) {
 
 /* Split a set of feat rows by which player owns them.
    `side` says whose feat it is: the batter's owner for hitting, and for a
-   half-inning the *other* player, since the row records who was batting. */
-function bySide(rows, side) {
+   half-inning the *other* player, since the row records who was batting.
+   `weight` is for rows that carry a count rather than being one — a half-inning
+   can contain two double plays. */
+function bySide(rows, side, weight = () => 1) {
   const out = { [P1]: 0, [P2]: 0 };
   for (const r of rows) {
     const who = side(r);
-    if (who in out) out[who]++;
+    if (who in out) out[who] += weight(r);
   }
   return out;
 }
@@ -715,6 +733,7 @@ const otherPlayer = (u) => (u === P1 ? P2 : P1);
 const batterSide = (r) => r.u;          // hitting feats belong to the card's owner
 const pitcherSide = (r) => otherPlayer(r.b);  // a half-inning names who batted
 const winnerSide = (r) => r.b;          // a walk-off belongs to the side batting
+const paSide = (r) => r.b;              // a plate-appearance event names the batting side
 
 /* "3 you · 0 them", coloured, so a card says whose feat it is at a glance. */
 function splitLine(counts) {
@@ -970,17 +989,18 @@ function renderWindow() {
 const CMP_BAT = [
   ["Batting average", "avg", false, rate], ["On-base %", "obp", false, rate],
   ["Slugging %", "slg", false, rate], ["OPS", "ops", false, rate],
-  ["Home runs", "hr", false, (v) => num(v)], ["Runs", "runs", false, (v) => num(v)],
+  ["Home runs", "hr", false, (v) => num(v)], ["Runs batted in", "rbi", false, (v) => num(v)],
+  ["Runs", "r", false, (v) => num(v)],
   ["Hits", "h", false, (v) => num(v)], ["Stolen bases", "sb", false, (v) => num(v)],
   ["Strikeouts", "so", true, (v) => num(v)],
 ];
 const CMP_PIT = [
   ["ERA", "era", true, (v) => num(v, 2)], ["WHIP", "whip", true, (v) => num(v, 3)],
   ["Runs allowed / 9", "ra9", true, (v) => num(v, 2)],
-  ["K / 9", "k_per_9", false, (v) => num(v, 2)],
-  ["BB / 9", "bb_per_9", true, (v) => num(v, 2)],
+  ["K / 9", "k9", false, (v) => num(v, 2)],
+  ["BB / 9", "bb9", true, (v) => num(v, 2)],
   ["Strikeouts", "so", false, (v) => num(v)],
-  ["Innings", "innings", false, (v) => num(v, 1)],
+  ["Innings", "ip", null, (v) => num(v, 1)],
 ];
 
 function renderCompare() {
@@ -988,7 +1008,11 @@ function renderCompare() {
   const build = (rows, key) => rows.map(([label, f, lower, fmt]) => {
     const a = VIEW.team[you]?.[key]?.[f], b = VIEW.team[them]?.[key]?.[f];
     if (a === undefined || b === undefined) return "";
-    const aWins = lower ? a < b : a > b, bWins = lower ? b < a : b > a;
+    // `lower: null` means neither direction is better — innings pitched is a
+    // volume stat in a game where both sides pitch the same nine, so bolding a
+    // "winner" there would be inventing a verdict.
+    const aWins = lower === null ? false : lower ? a < b : a > b;
+    const bWins = lower === null ? false : lower ? b < a : b > a;
     return `<tr>
       <td class="v left ${aWins ? "win" : ""}">${fmt(a)}</td>
       <td class="k">${label}</td>
@@ -1060,6 +1084,19 @@ function renderNever() {
      fewestHits ? `closest: ${fewestHits.name} (${side(fewestHits)}) — `
                   + `${closestHits} hit${closestHits === 1 ? "" : "s"}`
                 : "no complete games yet"],
+    // With eleven three-run homers there is no single near-miss to name, so the
+    // count carries it; the 3-run homers row below splits those by player. In a
+    // narrow window the best may only be a two-run shot, and then naming who
+    // hit it is the more useful sentence.
+    ["Grand slam", f.slams.length,
+     !f.bigHomer ? "no home runs yet"
+     : f.bigHomer.rb === 3
+       ? `${f.threeRun.length} three-run homer${f.threeRun.length === 1 ? "" : "s"}, never four`
+       : `closest: a ${f.bigHomer.rb}-run homer — ${holder(f.bigHomer, paSide)}`],
+    ["Triple play", f.triplePlays,
+     f.doublePlays ? `${f.doublePlays} double play${f.doublePlays === 1 ? "" : "s"} `
+                     + `turned, none has become three`
+                   : "no double plays either"],
     ["Cycle", f.cycles.length,
      `closest: ${f.bestCycle} of 4 — ${holder(f.bestCycleBy, batterSide)}`],
     ["3-homer game", f.threeHr.length,
@@ -1077,6 +1114,9 @@ function renderNever() {
     ["Immaculate innings", f.immaculate.length, bySide(f.immaculate, pitcherSide)],
     ["Struck out the side", f.strikeSide.length, bySide(f.strikeSide, pitcherSide)],
     ["Walk-off wins", f.walkoffs.length, bySide(f.walkoffs, winnerSide)],
+    ["Double plays turned", f.doublePlays,
+     bySide(f.dpRows, pitcherSide, (r) => r.dp)],
+    ["3-run homers", f.threeRun.length, bySide(f.threeRun, paSide)],
     ["4-hit games", f.fourHit.length, bySide(f.fourHit, batterSide)],
     ["5-RBI games", f.fiveRbi.length, bySide(f.fiveRbi, batterSide)],
     ["3-steal games", f.threeSteal.length, bySide(f.threeSteal, batterSide)],
@@ -1086,12 +1126,13 @@ function renderNever() {
   // have never swapped in this rivalry — so a 0 there is structural, not a
   // drought, and saying so stops it reading as a bug.
   const sides = new Set(VIEW.games.map((g) => g.home));
+  const defence = `Immaculate innings, strike-outs of the side and double plays are `
+                + `credited to the side in the field, not the one batting.`;
   $("rarest-note").textContent = sides.size === 1
-    ? `Immaculate innings and strike-outs of the side are credited to the pitching `
-      + `side. Walk-offs can only belong to whoever bats last, and ${[...sides][0]} `
+    ? `${defence} Walk-offs can only belong to whoever bats last, and ${[...sides][0]} `
       + `has been the home team in all ${VIEW.games.length} of these games — so the `
       + `other side cannot have one.`
-    : "Immaculate innings and strike-outs of the side are credited to the pitching side.";
+    : defence;
 }
 
 function renderChase() {

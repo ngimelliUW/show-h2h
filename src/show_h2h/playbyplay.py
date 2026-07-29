@@ -108,6 +108,28 @@ _STRIKEOUT = re.compile(
     rf"({_NAME})\s+(?:struck out|was called out on strikes)([^.]*)")
 _HOMER = re.compile(rf"({_NAME})\s+homered to (\w+) \((\d+) feet\)")
 
+# How many runs a home run drove in is never stated. What the log does print,
+# right after the homer, is one "<Runner> scores." sentence per runner who came
+# home — so the RBI is one for the batter plus however many of those run on
+# before the next play starts. The leading character class skips the sentence's
+# own full stop, the colour sentinels, and the go-ahead "*".
+#
+# The trailer independently states an RBI figure for every perfect-perfect ball,
+# which covers 132 of these home runs. All 132 agree with this count, which is
+# what makes a four-RBI homer trustworthy as a grand slam.
+_SCORED_RUNNER = re.compile(rf"^[.\s*\x01-\x05]*({_NAME})\s+scores\.")
+
+
+def rbi_for_homer(text: str, end: int) -> int:
+    """RBI on the home run whose sentence ends at `end` in `text`."""
+    rest, rbi = text[end:], 1
+    while True:
+        m = _SCORED_RUNNER.match(rest)
+        if not m:
+            return rbi
+        rbi += 1
+        rest = rest[m.end():]
+
 
 def parse_narrative(narrative: str) -> list[dict]:
     """One row per notable plate appearance, with the batting squad attached.
@@ -137,13 +159,14 @@ def parse_narrative(narrative: str) -> list[dict]:
                 "pitch_type": _find(m.group(2), PITCH_TYPES),
                 "location": _find(m.group(2), LOCATIONS),
                 "timing": _timing(m.group(0)),
-                "distance": None, "direction": None,
+                "distance": None, "direction": None, "rbi": None,
             }))
         for m in _HOMER.finditer(line):
             found.append((m, {
                 "kind": "home_run", "batter": m.group(1),
                 "pitch_type": None, "location": None, "timing": None,
                 "direction": m.group(2), "distance": int(m.group(3)),
+                "rbi": rbi_for_homer(line, m.end()),
             }))
         found.sort(key=lambda pair: pair[0].start())
 
@@ -169,6 +192,21 @@ def parse_narrative(narrative: str) -> list[dict]:
 _HALF_SUMMARY = re.compile(
     r"Runs: (\d+) Hits: (\d+) Walks: (\d+) Errors: (\d+) Pitches: (\d+)"
     r"(?: Runners Left On: (\d+))?")
+
+# Turned double and triple plays, read off the scorer's tag in the play's
+# parenthetical — "(4-6-3 DP)" — rather than the prose. The tag is the more
+# complete signal: 14 of the 142 double plays in this record are
+# strike-'em-out-throw-'em-out, written "(2-6 DP). <Runner> out." with the words
+# "double play" appearing nowhere in the sentence.
+#
+# A triple play has never happened here, so its pattern is written from the
+# double play's shape (the log uses standard scorer's abbreviations throughout —
+# DP, FC, SH, WP) and widened with the prose form, so it is caught whichever way
+# the game chooses to word it. analysis/_verify.py feeds it a synthetic one,
+# because a detector for something that has never occurred is otherwise a
+# detector nobody has ever seen fire.
+_DOUBLE_PLAY = re.compile(r"\([^)]*\bDP\)")
+_TRIPLE_PLAY = re.compile(r"\([^)]*\bTP\)|triple play", re.I)
 
 
 def parse_half_innings(narrative: str) -> list[dict]:
@@ -197,6 +235,14 @@ def parse_half_innings(narrative: str) -> list[dict]:
             "pitches": int(m.group(5)),
             "lob": int(m.group(6)) if m.group(6) else 0,
             "strikeouts": len(re.findall(r"struck out|called out on strikes", block)),
+            # Credited to whoever was in the field, which is the other side from
+            # the one this row says was batting.
+            "double_plays": len(_DOUBLE_PLAY.findall(block)),
+            # A triple play records all three outs, so a half-inning can contain
+            # at most one — which is what makes a boolean safe here. Counting
+            # matches instead would double up whenever the log writes both the
+            # prose and the tag, the way it does for double plays.
+            "triple_plays": int(bool(_TRIPLE_PLAY.search(block))),
         })
     return halves
 

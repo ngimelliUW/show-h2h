@@ -58,6 +58,31 @@ with sync_playwright() as pw:
         check(f"[{label}] form populated",
               frame.evaluate("() => document.getElementById('form').children.length") > 0)
 
+        # The head-to-head tables drop any row whose stat is undefined, which is
+        # silent: four rows referenced field names the totals object never had
+        # and simply never appeared. Compare rendered rows against the
+        # definitions rather than trusting the table to complain.
+        for tbl, defs in (("cmp-bat", "CMP_BAT"), ("cmp-pit", "CMP_PIT")):
+            got, want = frame.evaluate(
+                f"() => [document.getElementById('{tbl}').children.length, {defs}.length]")
+            missing = frame.evaluate(f"""() => {{
+                const t = VIEW.team[viewer]?.{'bat' if tbl == 'cmp-bat' else 'pit'} || {{}};
+                return {defs}.filter(([, f]) => t[f] === undefined).map(([l]) => l);
+            }}""")
+            check(f"[{label}] {tbl} renders every row it defines", got == want,
+                  f"{got}/{want}" + (f", missing: {missing}" if missing else ""))
+        check(f"[{label}] RBI is in the batting comparison",
+              "Runs batted in" in frame.evaluate(
+                  "() => document.getElementById('cmp-bat').innerText"))
+        # The card labels are upper-cased in CSS, so compare case-insensitively.
+        never_text = frame.evaluate(
+            "() => document.getElementById('never').innerText").lower()
+        check(f"[{label}] the never-done list names grand slams and triple plays",
+              all(t in never_text for t in ("grand slam", "triple play")), never_text[:40])
+        check(f"[{label}] double plays are in the rarest list",
+              "double plays turned" in frame.evaluate(
+                  "() => document.getElementById('rarest').innerText").lower())
+
         for tab in TABS:
             btn = frame.query_selector(f'#tabs button[data-t="{tab}"]')
             if not btn:

@@ -183,6 +183,9 @@ CREATE TABLE IF NOT EXISTS pa_events (
     timing            TEXT,               -- chasing | late | early | looking | swinging
     distance          INTEGER,            -- home runs only, feet
     direction         TEXT,               -- home runs only
+    -- Home runs only, counted from the "<Runner> scores." sentences the log
+    -- prints behind the homer. 4 is a grand slam; the log never uses the phrase.
+    rbi               INTEGER,
     critical          INTEGER NOT NULL DEFAULT 0,
     scored            INTEGER NOT NULL DEFAULT 0,
     go_ahead          INTEGER NOT NULL DEFAULT 0,
@@ -219,6 +222,10 @@ CREATE TABLE IF NOT EXISTS half_innings (
     pitching_username TEXT COLLATE NOCASE,
     runs INTEGER, hits INTEGER, walks INTEGER, errors INTEGER,
     pitches INTEGER, lob INTEGER, strikeouts INTEGER,
+    -- Turned by the fielding side, so they belong to pitching_username. The box
+    -- score has no double-play column at all; these come from the play's tag.
+    double_plays INTEGER NOT NULL DEFAULT 0,
+    triple_plays INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (game_uuid, idx)
 );
 

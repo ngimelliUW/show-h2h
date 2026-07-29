@@ -12,7 +12,9 @@ Run:  uv run python analysis/_verify.py
 """
 from __future__ import annotations
 
-from show_h2h import db, identity
+import re
+
+from show_h2h import db, identity, playbyplay
 
 # Measured live on 2026-07-28, before any of this code existed.
 BASELINE_THROUGH = "2026-07-28"
@@ -171,6 +173,105 @@ unattrib = db.query("SELECT COUNT(*) n FROM contact_events WHERE username IS NUL
 total_pp = db.query("SELECT COUNT(*) n FROM contact_events").iloc[0].n
 check("most perfect-perfect balls are attributed", unattrib / max(total_pp, 1) < 0.10,
       f"{unattrib}/{total_pp} unattributed")
+
+# --- RBI on a home run, which the log never states directly -------------------
+# It is counted from the "<Runner> scores." sentences behind the homer, and four
+# of them is a grand slam — so if this drifts, the grand-slam card lies.
+rbi = db.query("""
+    SELECT MIN(e.rbi) lo, MAX(e.rbi) hi, SUM(e.rbi) total, COUNT(*) n
+    FROM pa_events e JOIN games g ON g.game_uuid = e.game_uuid
+    WHERE g.is_h2h = 1 AND e.kind = 'home_run'""").iloc[0]
+check("every home run drove in between one and four", rbi.lo >= 1 and rbi.hi <= 4,
+      f"{rbi.lo}-{rbi.hi} across {rbi.n} home runs")
+check("only home runs carry an RBI figure",
+      db.query("SELECT COUNT(*) n FROM pa_events "
+               "WHERE kind <> 'home_run' AND rbi IS NOT NULL").iloc[0].n == 0)
+
+box_rbi = db.query("""SELECT SUM(b.rbi) n FROM batting_lines b
+                      JOIN games g ON g.game_uuid = b.game_uuid
+                      WHERE g.is_h2h = 1""").iloc[0].n
+check("home-run RBI are a subset of the box score's RBI", rbi.total <= box_rbi,
+      f"{rbi.total} on homers of {box_rbi} total")
+
+# The trailer states its own RBI figure for every perfect-perfect ball. That
+# overlaps most of the home runs and is an independent source, so it is the one
+# check here that could catch a plausible-but-wrong count.
+HOMER_IN_TRAILER = re.compile(r"(\w[\w'.\- ]*?) homered to \w+ \((\d+) feet\)")
+stored: dict[tuple, int] = {
+    (e.game_uuid, e.batter, e.distance): e.rbi
+    for e in db.query("SELECT game_uuid, batter, distance, rbi FROM pa_events "
+                      "WHERE kind = 'home_run'").itertuples()}
+agree = disagree = 0
+for row in db.query("""SELECT g.game_uuid u, t.text FROM game_log_text t
+                       JOIN games g ON g.game_uuid = t.game_uuid
+                       WHERE g.is_h2h = 1""").itertuples():
+    for entry in playbyplay.parse(row.text)["perfect"]:
+        hit = HOMER_IN_TRAILER.search(entry["outcome"])
+        said = re.search(r"(\d+) RBI", entry["outcome"])
+        if not (hit and said):
+            continue
+        got = stored.get((row.u, hit.group(1).strip(), int(hit.group(2))))
+        if got is None:
+            continue
+        agree += got == int(said.group(1))
+        disagree += got != int(said.group(1))
+check("counted home-run RBI match the figure the trailer states",
+      disagree == 0 and agree > 50, f"{agree} agree, {disagree} disagree")
+
+# --- turned double and triple plays ------------------------------------------
+dp = db.query("""SELECT SUM(h.double_plays) dp, MAX(h.double_plays) most,
+                        SUM(h.triple_plays) tp, MAX(h.triple_plays) most_tp
+                 FROM half_innings h JOIN games g ON g.game_uuid = h.game_uuid
+                 WHERE g.is_h2h = 1""").iloc[0]
+# Three outs to a half-inning, so two double plays in one cannot happen; if this
+# ever trips, the parser has merged two half-innings into one block.
+check("no half-inning contains more than one double play", dp.most <= 1,
+      f"{dp.dp} double plays, most in a half-inning {dp.most}")
+check("triple plays are counted at most once per half-inning", dp.most_tp <= 1)
+
+# A detector for something that has never happened has never been seen to fire.
+# These two feed it one, because a card that always reads zero is
+# indistinguishable from a card that is simply broken.
+SYNTHETIC = (
+    "Inning 7:^c50^^n^"
+    "Worms batting. Kluber pitching. Judge lined to left for a single. Trout walked. "
+    "Harper walked. ^c46^Muncy homered to center (441 feet). Harper scores. "
+    "Trout scores. Judge scores.^c50^*^n^"
+    "Runs: 4 Hits: 2 Walks: 2 Errors: 0 Pitches: 19 Runners Left On: 0^n^"
+    "^n^"
+    "SWEs batting. Verlander pitching. Rice lined to left for a single. Bryant walked. "
+    "Volpe lined into a triple play (L6-4-3 TP). Bryant out. Rice out.^n^"
+    "Runs: 0 Hits: 1 Walks: 1 Errors: 0 Pitches: 8 Runners Left On: 0^n^"
+)
+synth = playbyplay.parse(SYNTHETIC)
+slams = [e for e in synth["events"] if e["kind"] == "home_run" and e["rbi"] == 4]
+check("a grand slam is detected when one happens", len(slams) == 1,
+      f"{[e['batter'] for e in slams]}")
+check("the grand slam is credited to the side that was batting",
+      bool(slams) and slams[0]["squad"] == "Worms", slams[0]["squad"] if slams else "")
+check("a triple play is detected when one happens",
+      sum(h["triple_plays"] for h in synth["halves"]) == 1)
+check("a triple play is not also counted as a double play",
+      sum(h["double_plays"] for h in synth["halves"]) == 0)
+
+# The log writes 14 of its double plays as strike-'em-out-throw-'em-out, with
+# the words "double play" nowhere in the sentence — which is why the detector
+# reads the scorer's tag rather than the prose.
+tag_only = playbyplay.parse(
+    "Inning 3:^c50^^n^"
+    "Worms batting. Kluber pitching. Judge lined to left for a single. "
+    "Trout struck out chasing a slider low and away (2-6 DP). Judge out.^n^"
+    "Runs: 0 Hits: 1 Walks: 0 Errors: 0 Pitches: 7 Runners Left On: 0^n^")
+check("a strike-'em-out-throw-'em-out counts as a double play",
+      sum(h["double_plays"] for h in tag_only["halves"]) == 1)
+# ...and the prose form on its own still counts, in case the wording changes.
+prose_only = playbyplay.parse(
+    "Inning 3:^c50^^n^"
+    "Worms batting. Kluber pitching. Trout walked. Harper walked. "
+    "Judge grounded into a triple play. Trout out. Harper out.^n^"
+    "Runs: 0 Hits: 0 Walks: 2 Errors: 0 Pitches: 9 Runners Left On: 0^n^")
+check("a triple play written in prose alone still counts",
+      sum(h["triple_plays"] for h in prose_only["halves"]) == 1)
 
 print("\nALL PASS" if ok else "\nSOME CHECKS FAILED")
 raise SystemExit(0 if ok else 1)

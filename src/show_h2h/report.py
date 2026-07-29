@@ -111,15 +111,17 @@ def build() -> dict:
             SELECT e.game_uuid AS g, e.batting_username AS b, e.pitching_username AS t,
                    e.batter AS p, e.kind AS k, e.pitch_type AS pt, e.location AS lo,
                    e.timing AS ti, e.distance AS d, e.direction AS dir, e.go_ahead AS ga,
-                   e.inning AS inn
+                   e.inning AS inn, e.rbi AS rb
             FROM pa_events e JOIN games x ON x.game_uuid = e.game_uuid
             WHERE x.is_h2h = 1
         """, index),
         # Half-innings carry the only pitch counts the API exposes, which is what
-        # makes an immaculate inning detectable.
+        # makes an immaculate inning detectable — and the only double-play count
+        # anywhere, since the box score has no such column.
         "hi": _table('''
             SELECT h.game_uuid AS g, h.batting_username AS b, h.inning AS inn,
-                   h.pitches AS pit, h.strikeouts AS k, h.runs AS r, h.idx
+                   h.pitches AS pit, h.strikeouts AS k, h.runs AS r, h.idx,
+                   h.double_plays AS dp, h.triple_plays AS tp
             FROM half_innings h JOIN games x ON x.game_uuid = h.game_uuid
             WHERE x.is_h2h = 1 ORDER BY h.game_uuid, h.idx
         ''', index),
@@ -154,9 +156,19 @@ def render() -> str:
         "/*__DATA__*/null", json.dumps(data, separators=(",", ":"), allow_nan=False))
 
 
+# The template is a fragment: Streamlit's components.html supplies the document
+# around it, and the parent page's viewport tag is what makes the iframe lay out
+# at phone width. Opening the fragment straight off disk has no such parent, so
+# a phone renders it at the 980px default and every local preview looks like a
+# shrunken desktop. Only the standalone file needs the wrapper.
+_STANDALONE = ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
+               '<meta name="viewport" content="width=device-width,initial-scale=1">'
+               '</head><body>{}</body></html>')
+
+
 def main() -> int:
     data = build()
-    html = render()
+    html = _STANDALONE.format(render())
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html)
     size = OUT.stat().st_size / 1024

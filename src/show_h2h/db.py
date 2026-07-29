@@ -28,6 +28,10 @@ def connect() -> sqlite3.Connection:
 # gain a column would be silly, so add them in place.
 _MIGRATIONS = {
     "games": [("is_coop", "INTEGER NOT NULL DEFAULT 0")],
+    # Re-parsing fills these in; it reads stored text, so it costs no network.
+    "pa_events": [("rbi", "INTEGER")],
+    "half_innings": [("double_plays", "INTEGER NOT NULL DEFAULT 0"),
+                     ("triple_plays", "INTEGER NOT NULL DEFAULT 0")],
 }
 
 
