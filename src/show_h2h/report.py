@@ -132,10 +132,15 @@ def build() -> dict:
     }
 
     latest = db.query("SELECT MAX(played_at) d FROM games WHERE is_h2h = 1").iloc[0]["d"]
+    # When the pipeline last ran, which is the only signal that separates "you
+    # haven't played in a week" from "the refresh has been broken for a week" —
+    # the newest game's date can't tell those apart.
+    checked = db.query("SELECT MAX(ran_at) t FROM import_log").iloc[0]["t"]
     return {
         "players": [me, them],
         "generated": db.now_iso()[:10],
         "through": (str(latest) or "")[:10],
+        "checked": (str(checked) or "")[:10],
         "games": games,
         "coop": coop,
         "lines": lines,

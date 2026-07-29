@@ -105,6 +105,14 @@ locally-modified file. Writing in place pinned the deploy to whatever database
 existed the first time the app ever ran — new code, stale tables, new pages
 silently empty.
 
+The scoreboard's top line reports freshness: when the newest game was played,
+and when the pipeline last ran. Those answer different questions — only the
+second separates "nobody has played in a week" from "the nightly refresh has been
+broken for a week", which is the failure a laptop-scheduled job actually has. It
+turns amber after three days without a successful ingest.
+
+The bar pinned at the bottom of the app pulls from the API on demand.
+
 Two controls in the scoreboard drive the whole page:
 
 - **You are** switches whose side every number is written from.
