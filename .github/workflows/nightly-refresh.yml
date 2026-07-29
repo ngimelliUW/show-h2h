@@ -1,0 +1,130 @@
+name: Nightly refresh
+
+# Pulls new games from the Show API and commits the published seed, which is
+# what makes new data permanent — the app's own refresh button writes to
+# Streamlit Cloud's ephemeral disk and is lost on restart.
+#
+# GitHub cron is UTC only and has no notion of daylight saving, so this fires at
+# both hours that can be 02:00 in Chicago and the job exits immediately on the
+# wrong one. That keeps it at 2am Central year-round instead of drifting an hour
+# every March and November.
+on:
+  schedule:
+    - cron: "0 7 * * *"    # 02:00 America/Chicago while CDT
+    - cron: "0 8 * * *"    # 02:00 America/Chicago while CST
+  workflow_dispatch:        # and on demand, from the Actions tab
+
+permissions:
+  contents: write
+
+# Never let two refreshes race for the same commit.
+concurrency:
+  group: nightly-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Is it actually 2am in Chicago?
+        id: gate
+        run: |
+          hour=$(TZ=America/Chicago date +%H)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$hour" = "02" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "It is ${hour}:00 in Chicago — this is the other DST schedule. Skipping."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.run == 'true'
+
+      - uses: astral-sh/setup-uv@v5
+        if: steps.gate.outputs.run == 'true'
+        with:
+          enable-cache: true
+
+      - name: Install
+        if: steps.gate.outputs.run == 'true'
+        run: uv sync --frozen
+
+      - name: Start from the published seed
+        if: steps.gate.outputs.run == 'true'
+        # data/show.db is gitignored, so a fresh checkout has no working
+        # database. Seeding from the published copy is what makes the crawl
+        # incremental — without it the job would re-fetch every game nightly.
+        run: |
+          cp data/seed.db data/show.db
+          uv run python -m show_h2h.ingest counts > /tmp/before.json
+          cat /tmp/before.json
+
+      - name: Pull new games
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          uv run python -m show_h2h.ingest refresh
+          uv run python -m show_h2h.ingest parse-logs
+          uv run python -m show_h2h.ingest counts > /tmp/after.json
+          cat /tmp/after.json
+
+      - name: Anything new?
+        if: steps.gate.outputs.run == 'true'
+        id: changed
+        run: |
+          if cmp -s /tmp/before.json /tmp/after.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No new games. Nothing to publish."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The gate. Publishing bad data unattended is worse than not publishing,
+      # so every check has to pass before the seed is written or committed.
+      - name: Verify the data
+        if: steps.gate.outputs.run == 'true' && steps.changed.outputs.changed == 'true'
+        run: |
+          uv run python analysis/_verify.py
+          uv run python analysis/_flip.py
+
+      - name: Publish the seed
+        if: steps.gate.outputs.run == 'true' && steps.changed.outputs.changed == 'true'
+        # snapshot refuses to overwrite with a database that has fewer rows, so
+        # a half-failed crawl can't quietly delete history.
+        run: |
+          uv run python -m show_h2h.ingest snapshot
+          uv run python analysis/_smoke.py
+
+      - name: Commit
+        if: steps.gate.outputs.run == 'true' && steps.changed.outputs.changed == 'true'
+        run: |
+          git config user.name "show-h2h bot"
+          git config user.email "actions@github.com"
+          git add data/seed.db
+          if git diff --cached --quiet; then
+            echo "Seed unchanged after all; nothing to commit."
+            exit 0
+          fi
+          summary=$(uv run python -m show_h2h.ingest status | head -20)
+          git commit -m "Nightly refresh $(TZ=America/Chicago date +'%Y-%m-%d')" \
+                     -m "$summary"
+          git push
+
+      - name: Report
+        if: always() && steps.gate.outputs.run == 'true'
+        run: |
+          {
+            echo "### Nightly refresh"
+            echo ""
+            if [ "${{ steps.changed.outputs.changed }}" = "true" ]; then
+              echo "New games found and published."
+              echo ""
+              echo '```'
+              diff <(python3 -m json.tool /tmp/before.json) \
+                   <(python3 -m json.tool /tmp/after.json) || true
+              echo '```'
+            else
+              echo "No new games."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

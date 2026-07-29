@@ -11,9 +11,32 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
+import sqlite3
 
 from show_h2h import config, db
+
+
+# Tables whose row counts should never fall between snapshots.
+TRACKED_TABLES = ("games", "game_source_ids", "batting_lines", "pitching_lines",
+                  "game_innings", "game_log_text", "pa_events", "contact_events",
+                  "half_innings")
+
+
+def _table_counts(path) -> dict[str, int]:
+    """Row counts per table, for the never-shrink guard in `snapshot`."""
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        out = {}
+        for table in TRACKED_TABLES:
+            try:
+                out[table] = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            except sqlite3.Error:
+                out[table] = 0
+        return out
+    finally:
+        conn.close()
 
 
 def _status() -> None:
@@ -61,9 +84,12 @@ def main(argv=None) -> int:
     b.add_argument("--limit", type=int, help="Cap how many to fetch this run.")
 
     sub.add_parser("parse-logs", help="Re-parse stored play-by-play into events (no network).")
-    sub.add_parser("snapshot", help="Write data/seed.db — the copy the hosted app ships with.")
+    sn = sub.add_parser("snapshot", help="Write data/seed.db — the copy the hosted app ships with.")
+    sn.add_argument("--force", action="store_true",
+                    help="Publish even if the new database has fewer rows than the current seed.")
     sub.add_parser("refresh", help="Incremental history + any missing H2H box scores.")
     sub.add_parser("status", help="Show what's in the database.")
+    sub.add_parser("counts", help="Row counts as JSON — used to detect whether a refresh changed anything.")
 
     args = ap.parse_args(argv)
 
@@ -102,11 +128,26 @@ def main(argv=None) -> int:
             conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
         finally:
             conn.close()
+
         seed = config.DATA_DIR / "seed.db"
+        counts = _table_counts(config.DB_PATH)
+        # This runs unattended every night. A crawl that half-failed would
+        # otherwise publish a database with games missing, and the loss would be
+        # committed over the good copy. Rows should only ever grow.
+        if seed.exists() and not args.force:
+            published = _table_counts(seed)
+            shrunk = {t: (published[t], counts[t]) for t in published
+                      if counts.get(t, 0) < published[t]}
+            if shrunk:
+                print("Refusing to publish — the new database has FEWER rows:")
+                for table, (was, now) in shrunk.items():
+                    print(f"  {table}: {was} -> {now}")
+                print("Re-run the ingest, or pass --force if this is intentional.")
+                return 1
+
         shutil.copy2(config.DB_PATH, seed)
-        rows = db.query("SELECT COUNT(*) n FROM pa_events").iloc[0]["n"]
-        print(f"Wrote {seed} ({seed.stat().st_size / 1024 / 1024:.1f} MB, "
-              f"{int(rows)} play-by-play events). Commit it to ship the data.")
+        print(f"Wrote {seed} ({seed.stat().st_size / 1024 / 1024:.1f} MB) — "
+              + ", ".join(f"{n} {t}" for t, n in sorted(counts.items()) if n))
         return 0
 
     if args.command == "parse-logs":
@@ -144,6 +185,13 @@ def main(argv=None) -> int:
             print(f"  play-by-play: FAILED — {e}")
         _status()
         return 0 if ok else 1
+
+    if args.command == "counts":
+        # A SQLite file's bytes change on every checkpoint even when no row did,
+        # so the nightly job compares these instead of diffing the binary. That
+        # keeps it from committing an identical database every night.
+        print(json.dumps(_table_counts(config.DB_PATH), sort_keys=True))
+        return 0
 
     if args.command == "status":
         _status()

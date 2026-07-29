@@ -1,12 +1,22 @@
-"""Correctness checks against the live-measured ground truth.
+"""Correctness checks on the ingested data.
 
-The record and run totals here were measured directly from the API before the
-pipeline existed, so they're an independent check that ingestion is right.
+Gate for the nightly refresh: if any of these fail, the job must not publish.
+
+The historical baseline was measured directly from the API before the pipeline
+existed, so it is an independent check that ingestion is right. It is asserted
+as a *prefix* — the record over games up to and including the backfill date —
+rather than as a total, because a total would break the first time a new game is
+played and would then block the automation from ever publishing again.
+
 Run:  uv run python analysis/_verify.py
 """
 from __future__ import annotations
 
 from show_h2h import db, identity
+
+# Measured live on 2026-07-28, before any of this code existed.
+BASELINE_THROUGH = "2026-07-28"
+BASELINE = {"games": 111, "wins": 76, "losses": 35, "runs_for": 362, "runs_against": 222}
 
 ok = True
 
@@ -22,12 +32,28 @@ check("ip '8.1' -> 25 outs", identity.outs_from_ip("8.1") == 25)
 check("ip '0.2' -> 2 outs", identity.outs_from_ip("0.2") == 2)
 check("ip '9.0' -> 27 outs", identity.outs_from_ip("9.0") == 27)
 
+# --- the historical prefix must never move -----------------------------------
+prefix = db.query("""
+    SELECT COUNT(*) AS games,
+           SUM(result = 'W') AS wins, SUM(result = 'L') AS losses,
+           SUM(my_runs) AS runs_for, SUM(their_runs) AS runs_against
+    FROM v_h2h_games WHERE played_at <= ? || 'T23:59:59'
+""", (BASELINE_THROUGH,)).iloc[0]
+for field, expected in BASELINE.items():
+    got = int(prefix[field] or 0)
+    check(f"baseline {field} through {BASELINE_THROUGH} is {expected}", got == expected,
+          f"got {got}")
+
+# --- invariants that hold for any amount of data -----------------------------
 r = db.query("SELECT * FROM v_h2h_record").iloc[0]
-check("record is 76-35", int(r.wins) == 76 and int(r.losses) == 35,
-      f"got {int(r.wins)}-{int(r.losses)}")
-check("runs are 362-222", int(r.runs_for) == 362 and int(r.runs_against) == 222,
-      f"got {int(r.runs_for)}-{int(r.runs_against)}")
-check("111 head-to-head games", int(r.games) == 111, f"got {int(r.games)}")
+check("every head-to-head game has a decision",
+      int(r.wins) + int(r.losses) == int(r.games),
+      f"{int(r.wins)}W + {int(r.losses)}L vs {int(r.games)} games")
+check("the record only grows", int(r.games) >= BASELINE["games"],
+      f"{int(r.games)} games, baseline {BASELINE['games']}")
+check("runs scored are consistent with the games table",
+      int(r.runs_for) == int(db.query(
+          "SELECT SUM(my_runs) n FROM v_h2h_games").iloc[0].n or 0))
 
 dupes = db.query("SELECT COUNT(*) n FROM "
                  "(SELECT game_uuid FROM games GROUP BY game_uuid HAVING COUNT(*) > 1)").iloc[0].n

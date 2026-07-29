@@ -7,7 +7,7 @@ dashboard: the rivalry record, batting and pitching leaderboards, and records
 like biggest blowout and longest win streak. The dashboard reads only from the
 database — pull fresh data explicitly when you want it.
 
-Currently tracking **LinguiniEater vs TallThibaut48** (PSN), 111 head-to-head
+Currently tracking **LinguiniEater vs TallThibaut48** (PSN), 114 head-to-head
 games since 2026-04-15.
 
 ## Setup
@@ -56,6 +56,31 @@ uv run python -m show_h2h.ingest refresh
 uv run python -m show_h2h.ingest snapshot   # checkpoints WAL, writes data/seed.db
 git commit -am "refresh data" && git push
 ```
+
+### Nightly refresh
+
+`.github/workflows/nightly-refresh.yml` pulls new games at **2am America/Chicago**
+and commits `data/seed.db`, which is what makes new games permanent — the app's
+own button writes to Streamlit Cloud's ephemeral disk and is lost on restart.
+
+GitHub cron is UTC and has no notion of daylight saving, so the workflow is
+scheduled at both 07:00 and 08:00 UTC and exits immediately on whichever one
+isn't 02:00 in Chicago. Without that it would drift an hour twice a year.
+
+It publishes only if the data actually changed, and only if every check passes:
+
+1. seed `data/show.db` from the published seed, so the crawl stays incremental
+2. `ingest refresh` + `parse-logs`
+3. compare row counts — no change means no commit, since a SQLite file's bytes
+   differ on every checkpoint even when no row does
+4. `_verify.py` and `_flip.py` must pass
+5. `ingest snapshot`, which **refuses to publish a database with fewer rows** than
+   the one it's replacing, so a half-failed crawl can't delete history
+6. `_smoke.py`, then commit
+
+Rehearse the whole thing against a throwaway copy with
+`uv run python analysis/_nightly.py` — it drives the real commands and asserts
+the failure modes, including that verification *fails* on a damaged database.
 
 **The app never writes to the committed database.** `data/seed.db` is a
 published snapshot written by `ingest snapshot`; the CLI's working database
