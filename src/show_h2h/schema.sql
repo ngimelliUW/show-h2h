@@ -37,8 +37,11 @@ CREATE TABLE IF NOT EXISTS games (
 
     season_year      INTEGER NOT NULL,
     game_mode        TEXT,                 -- 'ARENA' (Diamond Dynasty) | 'EXHIBITION'
-    played_at        TEXT,                 -- ISO-ish, parsed from MM/DD/YYYY HH:MM:SS
-    display_date     TEXT,                 -- the original string, timezone unverified
+    -- Naive LOCAL time. The API's string is UTC (see identity.parse_date for
+    -- how that was pinned down), so it is converted on the way in; storing it
+    -- verbatim once filed 90 of 121 head-to-head games under the wrong day.
+    played_at        TEXT,
+    display_date     TEXT,                 -- the original API string, still UTC
 
     innings          INTEGER,              -- can exceed 9; see game_innings
     ruling           TEXT,                 -- undocumented; 0 = normal, others seen: 2, 6, 15

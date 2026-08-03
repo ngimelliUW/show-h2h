@@ -211,6 +211,25 @@ Everything here was verified against live responses, not the docs.
 - **Usernames carry badge suffixes** (`"LinguiniEater ^b53^"`) in history but
   not in box scores, and the API's casing differs from what you'd type. All
   comparisons are normalized.
+- **`display_date` is UTC**, undocumented and easy to miss because a wrong
+  timezone never crashes and never looks malformed. Stored verbatim it filed
+  **90 of 121** head-to-head games under the wrong day, and turned 11pm sessions
+  into 4am ones. `identity.parse_date` converts to `config.LOCAL_TZ`; the raw
+  string stays in `games.display_date`, so `db._retime` can re-derive every row
+  and does so on every boot.
+
+  How it was pinned down, since guessing is what broke it: read as local, 84% of
+  these games fall between 2am and 6am; read as UTC and converted, 87% fall
+  between 8pm and 1am, which is when they are actually played. Nic independently
+  dated two games to "last night" and both match the UTC reading to the minute.
+  `_verify.py` asserts the offset row by row *and* that the distribution still
+  looks like evenings — the second is what would catch a wrong `LOCAL_TZ`, which
+  the first would happily accept.
+
+  Anything comparing against the original measurement must use the API's own UTC
+  date, not `played_at` — the baseline prefix in `_verify.py` does, or the
+  conversion slides three late games across midnight and the prefix appears to
+  grow on its own.
 - **The line score is capped at 9 innings and loses extra-inning runs.** An
   11-inning game here has per-inning runs summing to 2 against a real total of
   3. Game totals are correct; only the inning-by-inning breakdown is lossy.

@@ -17,8 +17,17 @@ import re
 from show_h2h import db, identity, playbyplay
 
 # Measured live on 2026-07-28, before any of this code existed.
+#
+# The cutoff is the API's own UTC date, not local time. These figures were read
+# off the API in its terms, so the boundary has to stay in its terms too —
+# played_at is now converted to local, which slid three late-evening games back
+# across a midnight and made this prefix look like it had grown on its own.
 BASELINE_THROUGH = "2026-07-28"
 BASELINE = {"games": 111, "wins": 76, "losses": 35, "runs_for": 362, "runs_against": 222}
+
+# MM/DD/YYYY -> YYYY-MM-DD, so the original string can be compared as a date.
+UTC_DATE = ("substr(display_date, 7, 4) || '-' || substr(display_date, 1, 2)"
+            " || '-' || substr(display_date, 4, 2)")
 
 ok = True
 
@@ -35,16 +44,43 @@ check("ip '0.2' -> 2 outs", identity.outs_from_ip("0.2") == 2)
 check("ip '9.0' -> 27 outs", identity.outs_from_ip("9.0") == 27)
 
 # --- the historical prefix must never move -----------------------------------
-prefix = db.query("""
+prefix = db.query(f"""
     SELECT COUNT(*) AS games,
            SUM(result = 'W') AS wins, SUM(result = 'L') AS losses,
            SUM(my_runs) AS runs_for, SUM(their_runs) AS runs_against
-    FROM v_h2h_games WHERE played_at <= ? || 'T23:59:59'
+    FROM v_h2h_games WHERE {UTC_DATE} <= ?
 """, (BASELINE_THROUGH,)).iloc[0]
 for field, expected in BASELINE.items():
     got = int(prefix[field] or 0)
     check(f"baseline {field} through {BASELINE_THROUGH} is {expected}", got == expected,
           f"got {got}")
+
+# --- played_at is local time, not the API's UTC -------------------------------
+# Stored verbatim, the API's string filed 90 of 121 games under the wrong day
+# and made 11pm sessions look like 4am ones. Nothing about a wrong timezone
+# crashes or looks malformed, so these assert the shift is present and correct.
+utc_offset = db.query(f"""
+    SELECT SUM(ABS((julianday(played_at)
+                    - julianday({UTC_DATE} || 'T' || substr(display_date, 12)))
+                   * 24 + 5) > 0.001) AS wrong,
+           COUNT(*) AS n
+    FROM games WHERE display_date IS NOT NULL AND played_at IS NOT NULL
+""").iloc[0]
+check("played_at is the API's timestamp converted from UTC to local",
+      int(utc_offset["wrong"] or 0) == 0,
+      f"{int(utc_offset['wrong'] or 0)} of {int(utc_offset['n'])} rows are not "
+      f"CDT-offset from display_date")
+
+# Nic plays evenings. Under the naive reading this was 16%, which is what a
+# wrong timezone looks like when nothing else complains.
+evening = db.query("""
+    SELECT SUM(CAST(strftime('%H', played_at) AS INT) >= 19
+            OR CAST(strftime('%H', played_at) AS INT) <= 1) AS ev, COUNT(*) AS n
+    FROM games WHERE is_h2h = 1
+""").iloc[0]
+share = int(evening["ev"] or 0) / max(1, int(evening["n"]))
+check("head-to-head games land in the evening, where they were played",
+      share > 0.6, f"{share:.0%} between 7pm and 1am")
 
 # --- invariants that hold for any amount of data -----------------------------
 r = db.query("SELECT * FROM v_h2h_record").iloc[0]

@@ -18,7 +18,7 @@ human types, so every comparison is normalized first.
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 from show_h2h import config
 
@@ -38,17 +38,34 @@ def same_user(a: str | None, b: str | None) -> bool:
 
 
 def parse_date(display_date: str | None) -> str | None:
-    """'07/28/2026 04:02:21' -> '2026-07-28T04:02:21'.
+    """'08/03/2026 04:55:27' -> '2026-08-02T23:55:27', i.e. UTC -> local.
 
-    Timezone is undocumented and unverified; the original string is always kept
-    alongside this in games.display_date.
+    **The API reports UTC.** This is undocumented, and it was wrong here for
+    months: the string was stored as-is, so 90 of 121 head-to-head games were
+    shown on the wrong day and the late ones looked like 4am starts.
+
+    How it was settled, since guessing at a timezone is how it broke the first
+    time. Read as local, 84% of these games fall between 2am and 6am. Read as
+    UTC and converted, 87% fall between 8pm and 1am — which is when they were
+    actually played. Nic independently dated two games to "last night"; both are
+    stored just after 04:00 and land at 11:06 PM and 11:55 PM local under the UTC
+    reading, and at 4am under the naive one.
+
+    Returns naive local time, matching the format the rest of the schema and the
+    report already assume. The original string is kept in games.display_date, so
+    this is always re-derivable. One wrinkle worth knowing: on the hour that DST
+    repeats each November, two games an hour apart can sort as equal.
     """
     if not display_date:
         return None
     try:
-        return datetime.strptime(display_date.strip(), "%m/%d/%Y %H:%M:%S").isoformat()
+        naive = datetime.strptime(display_date.strip(), "%m/%d/%Y %H:%M:%S")
     except ValueError:
         return None
+    return (naive.replace(tzinfo=timezone.utc)
+                 .astimezone(config.LOCAL_TZ)
+                 .replace(tzinfo=None)
+                 .isoformat())
 
 
 def natural_key(entry: dict) -> str:

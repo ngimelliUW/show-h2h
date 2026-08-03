@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
@@ -23,6 +24,10 @@ FRIEND_USERNAME = get("FRIEND_USERNAME", "TallThibaut48")
 PLATFORM = get("PLATFORM", "psn")
 SEASON_YEAR = int(get("SEASON_YEAR", "26"))
 REQUEST_DELAY = float(get("REQUEST_DELAY", "0.35"))
+
+# The API reports game times in UTC; games are stored and displayed in this
+# zone. See identity.parse_date for how that was established.
+LOCAL_TZ = ZoneInfo(get("LOCAL_TZ", "America/Chicago"))
 
 # Each edition of the game is its own silo; mlb26 cannot see mlb25 games.
 BASE_URL = f"https://mlb{SEASON_YEAR}.theshow.com/apis"

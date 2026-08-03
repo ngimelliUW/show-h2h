@@ -45,6 +45,30 @@ def _migrate(conn: sqlite3.Connection) -> None:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
 
 
+def _retime(conn: sqlite3.Connection) -> int:
+    """Re-derive games.played_at from the original API string.
+
+    The API reports UTC and it used to be stored verbatim, as if it were local
+    time — so most games were filed under the wrong day and evening sessions
+    looked like 4am ones. display_date still holds the untouched original, so
+    every row can simply be recomputed.
+
+    Idempotent by construction: it writes only where the stored value differs
+    from what the parser now produces, so it is free to run on every boot and
+    fixes a database in place without a version stamp to keep in sync.
+    """
+    from show_h2h import identity
+
+    rows = conn.execute(
+        "SELECT game_uuid, display_date, played_at FROM games").fetchall()
+    stale = [(want, r["game_uuid"]) for r in rows
+             if (want := identity.parse_date(r["display_date"]))
+             and want != r["played_at"]]
+    if stale:
+        conn.executemany("UPDATE games SET played_at = ? WHERE game_uuid = ?", stale)
+    return len(stale)
+
+
 def init_db(conn: sqlite3.Connection | None = None) -> None:
     own = conn is None
     conn = conn or connect()
@@ -52,6 +76,7 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
         _migrate(conn)
         conn.executescript(config.SCHEMA_PATH.read_text())
         seed_players(conn)
+        _retime(conn)
         conn.commit()
     finally:
         if own:

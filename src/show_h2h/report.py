@@ -73,7 +73,11 @@ def build() -> dict:
     me, them = config.MY_USERNAME, config.FRIEND_USERNAME
 
     games = _rows("""
-        SELECT g.game_uuid AS uuid, g.display_date AS d, g.played_at AS ts,
+        -- Format from played_at, not display_date: the latter is the API's raw
+        -- UTC string, which put every evening game on the following day. Same
+        -- MM/DD/YYYY shape the page has always rendered, now in local time.
+        SELECT g.game_uuid AS uuid,
+               strftime('%m/%d/%Y %H:%M:%S', g.played_at) AS d, g.played_at AS ts,
                g.home_username AS home, g.away_username AS away,
                g.home_runs AS hr, g.away_runs AS ar,
                g.home_hits AS hh, g.away_hits AS ah,
@@ -84,7 +88,8 @@ def build() -> dict:
     """)
 
     coop = _rows("""
-        SELECT display_date AS d, home_username AS home, away_username AS away,
+        SELECT strftime('%m/%d/%Y %H:%M:%S', played_at) AS d,
+               home_username AS home, away_username AS away,
                home_runs AS hr, away_runs AS ar, home_squad AS hs, away_squad AS asq
         FROM v_coop_games ORDER BY played_at DESC
     """)
