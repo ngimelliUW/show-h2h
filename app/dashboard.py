@@ -97,7 +97,18 @@ st.markdown("""
     font-size: 13px; min-height: 44px;
   }
   .st-key-refresh [data-testid="stButton"] button:hover { color: #E9EEF5; background: #16223A; }
-  .st-key-refresh { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; }
+  /* Opaque, or the bar's message renders straight over the report behind it —
+     a Streamlit alert has a translucent tint and assumes a page background. */
+  .st-key-refresh { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+                    background: #0C1522; }
+  .st-key-refresh [data-testid="stAlertContainer"] {
+    background: #16223A !important; border: 0 !important; border-radius: 0 !important;
+    padding: 10px 14px !important;
+  }
+  .st-key-refresh [data-testid="stAlertContainer"] * {
+    color: #E9EEF5 !important; font-size: 13px !important; line-height: 1.45 !important;
+  }
+  .st-key-refresh [data-testid="stAlertContainer"] svg { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -127,8 +138,18 @@ with st.container(key="refresh"):
                     "ok", f"Checked the API — {seen} game(s) seen, "
                           f"{res['imported']} new box score(s).")
             except Exception as e:
-                # Name the exception type: a 403 from a datacenter IP and a
-                # genuine outage read identically otherwise.
-                st.session_state["pull_result"] = (
-                    "err", f"Couldn't reach the Show API — {type(e).__name__}: {e}")
+                # A 403 here is not an outage and never resolves on a retry: the
+                # Show API blocks datacenter IPs, so this button cannot work from
+                # a hosted container at all — only from a home connection. Say
+                # that in words, because "HTTP Error 403" reads like a glitch
+                # worth clicking again. Anything else keeps its raw detail, which
+                # is the part worth reporting.
+                detail = f"{type(e).__name__}: {e}"
+                st.session_state["pull_result"] = ("err", (
+                    "This page can't reach the Show API — it blocks hosted "
+                    "servers (403), so the button only works when the app runs "
+                    "on a home connection. New games are pulled automatically "
+                    "overnight; the line at the top of the page says when the "
+                    "data was last checked."
+                ) if "403" in str(e) else f"Couldn't reach the Show API — {detail}")
         st.rerun()
