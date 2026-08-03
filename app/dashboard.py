@@ -104,14 +104,31 @@ st.markdown("""
 components.html(report.render(), height=1400, scrolling=True)
 
 with st.container(key="refresh"):
+    # The outcome goes through session_state rather than st.toast, because
+    # st.rerun() raises immediately and discards anything queued for display —
+    # the toast that used to be here was never once shown, on success or on
+    # failure. Clicking the button and being told nothing at all is what made a
+    # silently broken pull look identical to a working one.
+    outcome = st.session_state.get("pull_result")
+    if outcome:
+        kind, message = outcome
+        (st.success if kind == "ok" else st.error)(message, icon=None)
+
     if st.button("↻  Check the Show API for new games", width="stretch"):
         from show_h2h.importers import game_history, game_log
 
+        st.session_state.pop("pull_result", None)
         with st.spinner("Looking for games played since the last pull…"):
             try:
-                game_history.run_import(incremental=True)
+                counts = game_history.run_import(incremental=True)
                 res = game_log.run_import(scope="both-played")
-                st.toast(f"Up to date — {res['imported']} new box score(s).")
+                seen = sum(counts.values()) if isinstance(counts, dict) else 0
+                st.session_state["pull_result"] = (
+                    "ok", f"Checked the API — {seen} game(s) seen, "
+                          f"{res['imported']} new box score(s).")
             except Exception as e:
-                st.toast(f"Couldn't reach the API: {e}", icon="⚠️")
+                # Name the exception type: a 403 from a datacenter IP and a
+                # genuine outage read identically otherwise.
+                st.session_state["pull_result"] = (
+                    "err", f"Couldn't reach the Show API — {type(e).__name__}: {e}")
         st.rerun()

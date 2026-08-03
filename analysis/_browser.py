@@ -117,6 +117,29 @@ with sync_playwright() as pw:
               frame.evaluate("() => document.querySelectorAll('#tbl-bat tbody tr').length") > 0,
               "qualifiers must scale with the window")
 
+        # The refresh button must SAY what happened. It used to end in
+        # st.toast() immediately followed by st.rerun(), and rerun raises at
+        # once and discards anything queued for display — so the message never
+        # appeared, on success or failure, and a pull that was failing every
+        # time looked exactly like one that worked. Only exercised locally:
+        # against the deployed app this would crawl the API on every run.
+        if URL.startswith("http://localhost") and label == "desktop":
+            app = next((f for f in page.frames
+                        if f.query_selector(".st-key-refresh")), None)
+            check(f"[{label}] the refresh button exists", app is not None)
+            if app:
+                app.click(".st-key-refresh button", timeout=15_000)
+                text = None
+                for _ in range(180):
+                    page.wait_for_timeout(500)
+                    el = app.query_selector('[data-testid="stAlertContainer"], '
+                                            '[data-testid="stAlert"]')
+                    if el:
+                        text = el.inner_text().strip()
+                        break
+                check(f"[{label}] the refresh button reports its outcome",
+                      bool(text), (text or "nothing was shown to the user")[:90])
+
         # ignore 404s for favicons and similar static noise
         real = [e for e in errors if "Failed to load resource" not in e]
         check(f"[{label}] no JavaScript errors", not real, "; ".join(real[:3]))
