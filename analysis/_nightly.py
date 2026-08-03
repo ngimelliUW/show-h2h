@@ -88,9 +88,14 @@ try:
     # Assert the baseline before the deliberate damage below, or this reads a
     # database this test broke on purpose.
     conn = sqlite3.connect(sandbox / "data" / "show.db")
-    baseline = conn.execute(
-        "SELECT COUNT(*) FROM games WHERE is_h2h=1 AND played_at <= '2026-07-28T23:59:59'"
-    ).fetchone()[0]
+    # Cut on the API's own UTC date, not played_at. played_at is local now, and
+    # the conversion slides three late-evening games back across a midnight —
+    # which made this fixed historical count read 114.
+    baseline = conn.execute("""
+        SELECT COUNT(*) FROM games WHERE is_h2h = 1
+          AND substr(display_date, 7, 4) || '-' || substr(display_date, 1, 2)
+              || '-' || substr(display_date, 4, 2) <= '2026-07-28'
+    """).fetchone()[0]
     total_h2h = conn.execute("SELECT COUNT(*) FROM games WHERE is_h2h=1").fetchone()[0]
     conn.close()
     check("the baseline is asserted as a prefix, not a total", baseline == 111,

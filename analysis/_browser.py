@@ -117,6 +117,45 @@ with sync_playwright() as pw:
               frame.evaluate("() => document.querySelectorAll('#tbl-bat tbody tr').length") > 0,
               "qualifiers must scale with the window")
 
+        # Games that don't count must still be listed and labelled. Silently
+        # dropping them would leave the games table shorter than the number of
+        # games played, with nothing on the page to explain the difference.
+        # An earlier check left the window slider at 10; put it back to the full
+        # span, or this counts rows in a window rather than the whole history.
+        frame.evaluate("""() => { const s = document.getElementById('window-range');
+            s.value = s.max; s.dispatchEvent(new Event('input', {bubbles: true})); }""")
+        page.wait_for_timeout(700)
+        frame.query_selector('#tabs button[data-t="games"]').click()
+        page.wait_for_timeout(500)
+        listed, pills = frame.evaluate("""() => [
+            document.querySelectorAll('#tbl-games tbody tr').length,
+            [...document.querySelectorAll('#tbl-games .pill')].map(p => p.innerText.trim()),
+        ]""")
+        played = frame.evaluate("() => DATA.games.length")
+        check(f"[{label}] every game played is listed, counting or not",
+              listed == played, f"{listed} rows for {played} games")
+        voided = frame.evaluate(
+            "() => DATA.games.filter(g => g.st === 'no_contest').length")
+        check(f"[{label}] games that count for nothing are labelled",
+              sum("no contest" in p.lower() for p in pills) == voided,
+              f"{voided} no contest(s) in the data")
+
+        frame.query_selector('#tabs button[data-t="overview"]').click()
+        page.wait_for_timeout(400)
+        # The scoreboard has to reconcile on its face: wins + losses + ties
+        # must equal the games count beside them, or the tile looks wrong.
+        board = frame.evaluate("""() => {
+            const r = record(viewer);
+            const tile = [...document.querySelectorAll('.strip-item')]
+                .find(e => e.querySelector('.strip-k')?.innerText.trim().toLowerCase() === 'games');
+            return {w: r.w, l: r.l, ties: r.ties, voided: r.voided,
+                    tile: tile ? +tile.querySelector('.strip-v').innerText.trim() : null};
+        }""")
+        check(f"[{label}] the scoreboard's own numbers reconcile",
+              board["w"] + board["l"] + board["ties"] == board["tile"],
+              f"{board['w']}W+{board['l']}L+{board['ties']}T vs Games {board['tile']}"
+              f" ({board['voided']} no contest)")
+
         # The refresh button must SAY what happened. It used to end in
         # st.toast() immediately followed by st.rerun(), and rerun raises at
         # once and discards anything queued for display — so the message never

@@ -83,8 +83,15 @@ def build() -> dict:
                g.home_hits AS hh, g.away_hits AS ah,
                g.home_errors AS he, g.away_errors AS ae,
                g.home_squad AS hs, g.away_squad AS asq,
-               g.innings AS inn, (g.ruling <> '0') AS early, g.winner AS win
-        FROM games g WHERE g.is_h2h = 1 ORDER BY g.played_at
+               g.innings AS inn, (g.ruling <> '0') AS early,
+               -- Only a game that counts carries a decision, so every client-side
+               -- tally of W/L skips ties and no contests without knowing the rule.
+               -- Games that don't count are still sent: they belong in the table,
+               -- labelled, rather than vanishing with nothing to explain the gap.
+               CASE WHEN s.counts_record THEN g.winner END AS win,
+               s.status AS st
+        FROM games g JOIN v_game_status s ON s.game_uuid = g.game_uuid
+        WHERE g.is_h2h = 1 ORDER BY g.played_at
     """)
 
     coop = _rows("""
@@ -103,14 +110,16 @@ def build() -> dict:
                    b.ab, b.h, b.hr, b.rbi, b.r, b.bb, b.so, b.sb, b.cs,
                    b.doubles AS d2, b.triples AS d3, b.hbp, b.sf, b.sh
             FROM batting_lines b JOIN games x ON x.game_uuid = b.game_uuid
-            WHERE x.is_h2h = 1
+            JOIN v_game_status s ON s.game_uuid = x.game_uuid
+            WHERE x.is_h2h = 1 AND s.counts_stats = 1
         """, index),
         "pit": _table("""
             SELECT p.game_uuid AS g, p.username AS u, p.player_name AS p2,
                    p.outs AS o, p.so, p.bb, p.h, p.er, p.r,
                    p.win AS w, p.loss AS l, p.save AS sv, p.hold AS hld, p.slot AS s
             FROM pitching_lines p JOIN games x ON x.game_uuid = p.game_uuid
-            WHERE x.is_h2h = 1
+            JOIN v_game_status s ON s.game_uuid = x.game_uuid
+            WHERE x.is_h2h = 1 AND s.counts_stats = 1
         """, index),
         "pa": _table("""
             SELECT e.game_uuid AS g, e.batting_username AS b, e.pitching_username AS t,
@@ -118,7 +127,8 @@ def build() -> dict:
                    e.timing AS ti, e.distance AS d, e.direction AS dir, e.go_ahead AS ga,
                    e.inning AS inn, e.rbi AS rb
             FROM pa_events e JOIN games x ON x.game_uuid = e.game_uuid
-            WHERE x.is_h2h = 1
+            JOIN v_game_status s ON s.game_uuid = x.game_uuid
+            WHERE x.is_h2h = 1 AND s.counts_stats = 1
         """, index),
         # Half-innings carry the only pitch counts the API exposes, which is what
         # makes an immaculate inning detectable — and the only double-play count
@@ -128,13 +138,15 @@ def build() -> dict:
                    h.pitches AS pit, h.strikeouts AS k, h.runs AS r, h.idx,
                    h.double_plays AS dp, h.triple_plays AS tp
             FROM half_innings h JOIN games x ON x.game_uuid = h.game_uuid
-            WHERE x.is_h2h = 1 ORDER BY h.game_uuid, h.idx
+            JOIN v_game_status s ON s.game_uuid = x.game_uuid
+            WHERE x.is_h2h = 1 AND s.counts_stats = 1 ORDER BY h.game_uuid, h.idx
         ''', index),
         "pp": _table("""
             SELECT c.game_uuid AS g, c.username AS u, c.batter AS p,
                    c.exit_velo AS v, c.result AS res, c.outcome AS what
             FROM contact_events c JOIN games x ON x.game_uuid = c.game_uuid
-            WHERE x.is_h2h = 1 AND c.username IS NOT NULL
+            JOIN v_game_status s ON s.game_uuid = x.game_uuid
+            WHERE x.is_h2h = 1 AND s.counts_stats = 1 AND c.username IS NOT NULL
         """, index),
     }
 

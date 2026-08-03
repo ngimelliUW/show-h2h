@@ -44,9 +44,12 @@ check("ip '0.2' -> 2 outs", identity.outs_from_ip("0.2") == 2)
 check("ip '9.0' -> 27 outs", identity.outs_from_ip("9.0") == 27)
 
 # --- the historical prefix must never move -----------------------------------
+# api_result, not result: this measures whether ingestion still reproduces what
+# the API said, so it must not move when the early-game policy changes. Using
+# `result` here made a rule change read as three lost games.
 prefix = db.query(f"""
     SELECT COUNT(*) AS games,
-           SUM(result = 'W') AS wins, SUM(result = 'L') AS losses,
+           SUM(api_result = 'W') AS wins, SUM(api_result = 'L') AS losses,
            SUM(my_runs) AS runs_for, SUM(their_runs) AS runs_against
     FROM v_h2h_games WHERE {UTC_DATE} <= ?
 """, (BASELINE_THROUGH,)).iloc[0]
@@ -84,14 +87,59 @@ check("head-to-head games land in the evening, where they were played",
 
 # --- invariants that hold for any amount of data -----------------------------
 r = db.query("SELECT * FROM v_h2h_record").iloc[0]
-check("every head-to-head game has a decision",
-      int(r.wins) + int(r.losses) == int(r.games),
-      f"{int(r.wins)}W + {int(r.losses)}L vs {int(r.games)} games")
+check("every game that counts has a decision or is a tie",
+      int(r.wins) + int(r.losses) + int(r.ties) == int(r.games),
+      f"{int(r.wins)}W + {int(r.losses)}L + {int(r.ties)}T vs {int(r.games)} counting")
+# Nothing may be quietly dropped: every game ever played is in exactly one bucket.
+check("no game disappears between the buckets",
+      int(r.wins) + int(r.losses) + int(r.ties) + int(r.no_contests) == int(r.games_played),
+      f"{int(r.games_played)} played, {int(r.no_contests)} no contest")
 check("the record only grows", int(r.games) >= BASELINE["games"],
       f"{int(r.games)} games, baseline {BASELINE['games']}")
-check("runs scored are consistent with the games table",
+check("runs scored are consistent with the games that count",
       int(r.runs_for) == int(db.query(
-          "SELECT SUM(my_runs) n FROM v_h2h_games").iloc[0].n or 0))
+          "SELECT SUM(my_runs) n FROM v_h2h_games WHERE counts_stats").iloc[0].n or 0))
+
+# --- games that ended early follow baseball's regulation rule -----------------
+# The Show hands out a decision on every disconnect and gave all six here to the
+# home player, including a 0-0 and one where he trailed 2-4. These assert the
+# rule that throws those out, and that it throws out only those.
+bad = db.query("""
+    SELECT played_at, innings, my_runs, their_runs, status, result FROM v_h2h_games
+    WHERE (status = 'final'      AND my_runs = their_runs)                  -- tie with a winner
+       OR (status = 'final'      AND innings < 5)                           -- short and counted
+       OR (status = 'no_contest' AND innings >= 5)                          -- regulation, voided
+       OR (status <> 'final'     AND result IS NOT NULL)                    -- decision it shouldn't have
+""")
+check("no game that counts was won by the side that wasn't ahead", bad.empty,
+      "" if bad.empty else bad.to_dict("records")[:2])
+
+def _abs_where(clause: str) -> int:
+    return int(db.query(f"""
+        SELECT COALESCE(SUM(b.ab), 0) n FROM batting_lines b
+        JOIN games g USING (game_uuid) JOIN v_game_status s USING (game_uuid)
+        WHERE g.is_h2h = 1 AND {clause}""").iloc[0].n)
+
+
+voided_abs = _abs_where("s.status = 'no_contest'")
+leaderboard_abs = int(db.query(
+    "SELECT COALESCE(SUM(ab), 0) n FROM v_team_batting").iloc[0].n)
+# Guard against a vacuous pass: if there were no voided games, the equality
+# below would hold no matter what the views did.
+check("there is at least one game called before the 5th to test with",
+      voided_abs > 0, f"{voided_abs} at-bats sit in no-contest games")
+check("a game called before the 5th contributes no at-bats",
+      leaderboard_abs == _abs_where("s.counts_stats = 1"),
+      f"leaderboards hold {leaderboard_abs}, excluding {voided_abs}")
+
+# A tie keeps its statistics — that is the whole difference from a no contest.
+tie_abs = db.query("""
+    SELECT COALESCE(SUM(b.ab), 0) n FROM batting_lines b
+    JOIN games g USING (game_uuid) JOIN v_game_status s USING (game_uuid)
+    WHERE g.is_h2h = 1 AND s.status = 'tie'
+""").iloc[0].n
+check("a tied game still contributes its at-bats", int(tie_abs) > 0,
+      f"{int(tie_abs)} at-bats from tied games are in the leaderboards")
 
 dupes = db.query("SELECT COUNT(*) n FROM "
                  "(SELECT game_uuid FROM games GROUP BY game_uuid HAVING COUNT(*) > 1)").iloc[0].n

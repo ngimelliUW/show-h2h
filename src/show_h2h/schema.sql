@@ -259,6 +259,47 @@ CREATE TABLE IF NOT EXISTS import_log (
 -- different front-end later is a rendering change, not a data-layer change.
 -- --------------------------------------------------------------------------
 
+-- Whether a game counts, and for what.
+--
+-- The Show awards a decision on every game that ends early, and a disconnect
+-- looks exactly like a finished game apart from `ruling`. All six here went to
+-- the home player — including a 0-0, a 1-1, and one where the home side was
+-- losing 2-4. Taking those at face value inflates the record with games nobody
+-- won on the field.
+--
+-- Rather than invent a rule, this is baseball's own. A game is *regulation*
+-- once five innings are complete; called before that it is a "no game" and
+-- counts for nothing. A regulation game called with the score tied is a tie:
+-- the statistics stand, but no one is credited with a win or a loss. A
+-- regulation game called with someone ahead is simply a win, the way a
+-- rain-shortened game is.
+--
+-- Simplification worth knowing: the real rule makes a game regulation after
+-- 4½ innings if the home side leads, since it does not bat in the bottom half.
+-- `games.innings` counts whole innings, so that half-inning case would need
+-- `half_innings`. No game in this data sits on that boundary.
+DROP VIEW IF EXISTS v_game_status;
+CREATE VIEW v_game_status AS
+SELECT
+    game_uuid,
+    status,
+    status = 'final'                                AS counts_record,
+    status <> 'no_contest'                          AS counts_stats
+FROM (
+    SELECT
+        g.game_uuid,
+        CASE
+            -- ruling is NULL for history-only rows (no box score fetched) and
+            -- '0' for a normal finish. Neither is in question.
+            WHEN g.ruling IS NULL OR g.ruling = '0'            THEN 'final'
+            WHEN g.innings >= 5 AND g.home_runs <> g.away_runs THEN 'final'
+            WHEN g.innings >= 5                                THEN 'tie'
+            ELSE 'no_contest'
+        END AS status
+    FROM games g
+);
+
+
 -- Head-to-head games flattened to "me" vs "them" regardless of home/away.
 DROP VIEW IF EXISTS v_h2h_games;
 CREATE VIEW v_h2h_games AS
@@ -276,34 +317,60 @@ SELECT
     CASE WHEN g.home_username = me.username THEN g.away_hits   ELSE g.home_hits   END AS their_hits,
     CASE WHEN g.home_username = me.username THEN g.home_squad  ELSE g.away_squad  END AS my_squad,
     CASE WHEN g.home_username = me.username THEN g.away_squad  ELSE g.home_squad  END AS their_squad,
+    -- Only a game that counts for the record carries a decision. A tie and a
+    -- no contest both come back NULL, so anything summing W/L ignores them
+    -- without having to know this rule exists.
     CASE
+        WHEN s.status <> 'final' THEN NULL
         WHEN g.winner IS NULL THEN NULL
         WHEN g.winner = CASE WHEN g.home_username = me.username THEN 'home' ELSE 'away' END THEN 'W'
         ELSE 'L'
     END                                              AS result,
+    -- The decision exactly as the API reported it, before any policy is applied.
+    -- Kept so a check on *ingestion* can measure what the API actually said —
+    -- otherwise changing the policy makes a fixed historical measurement look
+    -- like the crawl started losing games.
+    CASE
+        WHEN g.winner IS NULL THEN NULL
+        WHEN g.winner = CASE WHEN g.home_username = me.username THEN 'home' ELSE 'away' END THEN 'W'
+        ELSE 'L'
+    END                                              AS api_result,
     g.has_box_score,
     g.ruling,
     -- ruling is undocumented; 0 is a normal finish. Non-zero shows up on games
-    -- that ended early — including two here where the score was TIED but a
-    -- winner was still awarded, which is what a quit/disconnect looks like.
-    g.ruling <> '0'                                  AS ended_early
+    -- that ended early. See v_game_status for what is done with them.
+    g.ruling <> '0'                                  AS ended_early,
+    s.status,
+    s.counts_record,
+    s.counts_stats
 FROM games g
 JOIN players me ON me.is_me = 1
+JOIN v_game_status s ON s.game_uuid = g.game_uuid
 WHERE g.is_h2h = 1;
 
 
 -- The headline record.
+--
+-- `games` counts what the record is built from — games that reached regulation,
+-- ties included. No contests are reported separately rather than folded in or
+-- silently dropped, so every game ever played is still accounted for:
+-- games + no_contests = every head-to-head game.
+--
+-- Runs come only from games that count, for the same reason the at-bats do.
 DROP VIEW IF EXISTS v_h2h_record;
 CREATE VIEW v_h2h_record AS
 SELECT
-    COUNT(*)                                        AS games,
+    SUM(counts_stats)                               AS games,
     SUM(result = 'W')                               AS wins,
     SUM(result = 'L')                               AS losses,
+    SUM(status = 'tie')                             AS ties,
+    SUM(status = 'no_contest')                      AS no_contests,
+    COUNT(*)                                        AS games_played,
     ROUND(CAST(SUM(result = 'W') AS REAL) / NULLIF(SUM(result IN ('W','L')), 0), 3) AS win_pct,
-    SUM(my_runs)                                    AS runs_for,
-    SUM(their_runs)                                 AS runs_against,
-    ROUND(AVG(my_runs), 2)                          AS avg_runs_for,
-    ROUND(AVG(their_runs), 2)                       AS avg_runs_against
+    SUM(CASE WHEN counts_stats THEN my_runs    ELSE 0 END) AS runs_for,
+    SUM(CASE WHEN counts_stats THEN their_runs ELSE 0 END) AS runs_against,
+    ROUND(AVG(CASE WHEN counts_stats THEN my_runs    END), 2) AS avg_runs_for,
+    ROUND(AVG(CASE WHEN counts_stats THEN their_runs END), 2) AS avg_runs_against
 FROM v_h2h_games;
 
 
@@ -344,7 +411,8 @@ SELECT
           / NULLIF(SUM(b.ab), 0), 3) AS ops
 FROM batting_lines b
 JOIN games g ON g.game_uuid = b.game_uuid
-WHERE g.is_h2h = 1
+JOIN v_game_status s ON s.game_uuid = g.game_uuid
+WHERE g.is_h2h = 1 AND s.counts_stats = 1
 GROUP BY b.username;
 
 
@@ -361,7 +429,8 @@ SELECT
     ROUND(3.0 * (SUM(p.h) + SUM(p.bb)) / NULLIF(SUM(p.outs), 0), 3) AS whip
 FROM pitching_lines p
 JOIN games g ON g.game_uuid = p.game_uuid
-WHERE g.is_h2h = 1
+JOIN v_game_status s ON s.game_uuid = g.game_uuid
+WHERE g.is_h2h = 1 AND s.counts_stats = 1
 GROUP BY p.username;
 
 
@@ -376,7 +445,8 @@ SELECT
     COUNT(*) AS n
 FROM pa_events e
 JOIN games g ON g.game_uuid = e.game_uuid
-WHERE g.is_h2h = 1 AND e.kind = 'strikeout'
+JOIN v_game_status s ON s.game_uuid = g.game_uuid
+WHERE g.is_h2h = 1 AND s.counts_stats = 1 AND e.kind = 'strikeout'
 GROUP BY e.batting_username, e.pitching_username, e.pitch_type, e.location,
          e.timing, e.batter;
 
@@ -389,7 +459,8 @@ SELECT
     e.distance, e.direction, e.inning, e.go_ahead, g.display_date
 FROM pa_events e
 JOIN games g ON g.game_uuid = e.game_uuid
-WHERE g.is_h2h = 1 AND e.kind = 'home_run' AND e.distance IS NOT NULL;
+JOIN v_game_status s ON s.game_uuid = g.game_uuid
+WHERE g.is_h2h = 1 AND s.counts_stats = 1 AND e.kind = 'home_run' AND e.distance IS NOT NULL;
 
 
 -- Perfect-perfect contact per card: how often, how hard, and what came of it.
@@ -407,7 +478,8 @@ SELECT
     SUM(c.result = 'out')                           AS outs
 FROM contact_events c
 JOIN games g ON g.game_uuid = c.game_uuid
-WHERE g.is_h2h = 1 AND c.username IS NOT NULL
+JOIN v_game_status s ON s.game_uuid = g.game_uuid
+WHERE g.is_h2h = 1 AND s.counts_stats = 1 AND c.username IS NOT NULL
 GROUP BY c.username, c.batter;
 
 
@@ -467,7 +539,8 @@ SELECT
           / NULLIF(SUM(b.ab) + SUM(b.bb) + SUM(b.hbp) + SUM(b.sf) + SUM(b.sh), 0), 1) AS bb_pct
 FROM batting_lines b
 JOIN games g ON g.game_uuid = b.game_uuid
-WHERE g.is_h2h = 1
+JOIN v_game_status s ON s.game_uuid = g.game_uuid
+WHERE g.is_h2h = 1 AND s.counts_stats = 1
 GROUP BY b.username, b.player_name;
 
 
@@ -508,5 +581,6 @@ SELECT
     ROUND(3.0 * (SUM(p.h) + SUM(p.bb)) / NULLIF(SUM(p.outs), 0), 3) AS whip
 FROM pitching_lines p
 JOIN games g ON g.game_uuid = p.game_uuid
-WHERE g.is_h2h = 1
+JOIN v_game_status s ON s.game_uuid = g.game_uuid
+WHERE g.is_h2h = 1 AND s.counts_stats = 1
 GROUP BY p.username, p.player_name;

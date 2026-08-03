@@ -827,12 +827,21 @@ function fromView(g, who) {
 }
 const opponentOf = (who) => (who === P1 ? P2 : P1);
 
+// A game that never reached regulation counts for nothing — not the record, not
+// the runs, not the leaderboards (the server already leaves its stat rows out).
+// A regulation game called while tied keeps its statistics but has no decision,
+// which `res` being null already handles. Both are still listed, labelled.
+const counts = (g) => g.st !== "no_contest";
+
 function record(who) {
-  const gs = (VIEW.games || DATA.games).map((g) => fromView(g, who));
+  const all = (VIEW.games || DATA.games).map((g) => fromView(g, who));
+  const gs = all.filter(counts);
   const w = gs.filter((g) => g.res === "W").length;
   const l = gs.filter((g) => g.res === "L").length;
+  const ties = gs.filter((g) => g.st === "tie").length;
+  const voided = all.length - gs.length;
   const rf = gs.reduce((a, g) => a + g.my, 0), ra = gs.reduce((a, g) => a + g.their, 0);
-  return { gs, w, l, rf, ra };
+  return { gs, all, w, l, ties, voided, rf, ra };
 }
 
 function streaks(res) {
@@ -871,6 +880,9 @@ function renderBoard() {
   const res = r.gs.map((g) => g.res).filter(Boolean);
   const st = streaks(res);
   const last10 = res.slice(-10);
+  // Ties and no contests are shown only when there are any, but they are shown:
+  // without them the scoreboard reads 80–37 over 119 games and the missing two
+  // look like an error rather than a rule.
   const strip = [
     ["Games", r.gs.length],
     ["Run diff", (r.rf - r.ra > 0 ? "+" : "") + (r.rf - r.ra)],
@@ -878,6 +890,8 @@ function renderBoard() {
     ["Streak", `${st.cur}${st.kind}`],
     ["Longest", `${st.bw}W · ${st.bl}L`],
     ["Last 10", `${last10.filter((x) => x === "W").length}–${last10.filter((x) => x === "L").length}`],
+    ...(r.ties ? [["Ties", r.ties]] : []),
+    ...(r.voided ? [["No contest", r.voided]] : []),
   ];
   $("strip").innerHTML = strip
     .map(([k, v]) => `<div class="strip-item"><span class="strip-k">${k}</span><span class="strip-v">${v}</span></div>`)
@@ -1021,9 +1035,13 @@ function renderCompare() {
   }).join("");
   $("cmp-bat").innerHTML = build(CMP_BAT, "bat");
   $("cmp-pit").innerHTML = build(CMP_PIT, "pit");
+  // Count the games these totals are actually built from. Games called before
+  // the 5th contribute no stat rows at all, so quoting the raw game count here
+  // would overstate what the numbers cover.
+  const counted = VIEW.games.filter(counts).length;
   $("cmp-note").textContent =
     `${you} on the left, ${them} on the right. Bold is the better mark. `
-    + `Totals are every card either of you played across ${VIEW.games.length} games.`;
+    + `Totals are every card either of you played across ${counted} games.`;
 }
 
 function renderFeats() {
@@ -1302,10 +1320,18 @@ function renderBars(kind, top) {
 
 /* ---------------- games ---------------- */
 function renderGames() {
-  const { gs } = record(viewer);
-  const rows = gs.slice().reverse();
+  // `all`, not `gs`: a game that doesn't count still belongs in the list.
+  // Dropping it would leave an unexplained gap between this table and the
+  // number of games played.
+  const { all, ties, voided } = record(viewer);
+  const rows = all.slice().reverse();
+  const aside = [
+    ties ? `${ties} tied when the game was called — statistics count, no decision` : "",
+    voided ? `${voided} ended before the 5th inning and count for nothing` : "",
+  ].filter(Boolean).join(". ");
   $("games-note").textContent =
     `${rows.length} head-to-head games, newest first, from ${viewer}'s side.`
+    + (aside ? ` ${aside}.` : "")
     + (DATA.coop.length ? ` Plus ${DATA.coop.length} co-op games where you two were teammates — those aren't in the record.` : "");
   $("tbl-games").innerHTML =
     `<thead><tr><th>Date</th><th>You</th><th>Them</th><th>Result</th><th>Inn</th>
@@ -1313,10 +1339,13 @@ function renderGames() {
     rows.map((g) => `<tr>
       <td class="name">${g.d.slice(0, 10)}</td>
       <td>${g.my}</td><td>${g.their}</td>
-      <td class="${g.res === "W" ? "w" : "l"}">${g.res || ""}</td>
+      <td class="${g.res === "W" ? "w" : g.res === "L" ? "l" : ""}">${g.res || "—"}</td>
       <td>${g.inn ?? ""}</td>
       <td class="name">${g.mySquad || ""}</td><td class="name">${g.theirSquad || ""}</td>
-      <td class="name">${g.early ? '<span class="pill">ended early</span>' : ""}</td>
+      <td class="name">${
+        g.st === "no_contest" ? '<span class="pill">no contest</span>'
+        : g.st === "tie" ? '<span class="pill">tie · called</span>'
+        : g.early ? '<span class="pill">ended early</span>' : ""}</td>
     </tr>`).join("") + "</tbody>";
 }
 

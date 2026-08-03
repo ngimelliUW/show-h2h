@@ -377,3 +377,40 @@ each, are fetched only for games you were both in (`--scope all` widens this).
 One thing the API cannot tell you: whether a game was an invited "Play vs
 Friend" match or a random matchmake. There is no such field. Head-to-head is
 determined purely by opponent identity.
+
+### Games that ended early
+
+`ruling` is `'0'` for a normal finish. Non-zero means the game was cut short —
+almost always a connection drop. **The Show still awards a decision**, and a
+disconnect is otherwise indistinguishable from a finished game, so taking its
+word for it credits wins nobody earned. All six here went to the home player,
+including a 0–0, a 1–1, and one where the home side was losing 2–4.
+
+Rather than invent a rule, `v_game_status` applies baseball's. A game is
+*regulation* once five innings are complete:
+
+| | Record | Statistics |
+|---|---|---|
+| Regulation, someone ahead | counts as W/L | count |
+| Regulation, tied | **no decision** | count |
+| Called before the 5th | **no contest** | **excluded** |
+
+That is exactly how MLB treats a shortened game: a rain-shortened win stands, a
+regulation game called while tied is a tie with the statistics intact, and a
+game called earlier is a "no game". It moved the record from 84–37 to **80–37,
+2 ties, 2 no contests** — 121 games, still all accounted for.
+
+Two things to keep in mind when touching this:
+
+- **Games that don't count are still sent to the page and still listed**, marked
+  with a pill. Dropping them would leave the table shorter than the number of
+  games played with nothing to explain the gap. `_browser.py` asserts every game
+  is listed and that the scoreboard's own W + L + ties equals the games it shows.
+- **`v_h2h_games.api_result` is the decision as the API reported it**, before any
+  policy. Ingestion checks must use that, not `result` — the baseline prefix in
+  `_verify.py` does. Pointing it at `result` makes a policy change look like the
+  crawl started losing games.
+
+The 4½-inning case (regulation early if the home side leads and does not bat)
+is not implemented — `games.innings` counts whole innings, so it would need
+`half_innings`. No game in this data sits on that boundary.
