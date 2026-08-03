@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.show-h2h.nightly-refresh</string>
+
+  <!-- caffeinate -i holds off idle sleep for as long as the script runs. Without
+       it the machine kept dozing mid-run: on 08-02 a 25-second refresh took
+       3h17m of wall clock, and the sleep in the middle of `git push` is what
+       broke the connection. It does not override closing the lid. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/caffeinate</string>
+    <string>-i</string>
+    <string>/bin/bash</string>
+    <string>/Users/Nic/projects/show-h2h/scripts/nightly-refresh.sh</string>
+  </array>
+
+
+  <!-- 02:00 local. This Mac is on America/Chicago and launchd honours local
+       time through daylight saving, so it stays 2am Central year-round.
+       If the machine is asleep at 2am, launchd runs the job on next wake. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>2</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <!-- The script logs everything itself; these catch anything that escapes it. -->
+  <key>StandardOutPath</key>
+  <string>/Users/Nic/Library/Logs/show-h2h/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/Nic/Library/Logs/show-h2h/launchd.err.log</string>
+
+  <!-- Standard, not Background: the Background class is aggressively throttled
+       by the scheduler, which stretched a job that does seconds of real work
+       into hours and left it straddling sleep. -->
+  <key>ProcessType</key>
+  <string>Standard</string>
+</dict>
+</plist>

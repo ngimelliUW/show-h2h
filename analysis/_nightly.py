@@ -129,6 +129,71 @@ try:
     check("verification FAILS on a damaged database", broken.returncode != 0,
           "the gate would have blocked this commit")
 
+    # --- the job must not be able to wedge the schedule ------------------------
+    # launchd will not start a second copy of a job whose label is already
+    # running, so a single hung run cancels every night after it — which is how
+    # 2026-08-03 was lost. These assert the guards against that, against the real
+    # script rather than a copy, since a copy is free to drift.
+    script = (ROOT / "scripts" / "nightly-refresh.sh").read_text()
+
+    body, taking = [], False
+    for line in script.splitlines():
+        if line.startswith("with_timeout() {"):
+            taking = True
+        if taking:
+            body.append(line)
+            if line == "}":
+                break
+    check("with_timeout is defined in the script", bool(body) and body[-1] == "}",
+          f"{len(body)} lines extracted")
+
+    harness = "\n".join([
+        "set -uo pipefail", 'say() { :; }', *body,
+        # a command that finishes returns its own status, success or failure
+        'with_timeout 10 quick true || exit 91',
+        'with_timeout 10 quick bash -c "exit 3"; [ $? -eq 3 ] || exit 92',
+        # the case that actually happened: a command that never returns
+        'start=$(date +%s)',
+        'with_timeout 3 hang sleep 300; [ $? -eq 124 ] || exit 93',
+        '[ $(( $(date +%s) - start )) -lt 30 ] || exit 94',
+        # and it must be killed, not orphaned to run forever
+        'pgrep -f "sleep 300" >/dev/null && exit 95',
+        'exit 0',
+    ])
+    t = subprocess.run(["bash", "-c", harness], capture_output=True, text=True)
+    reason = {91: "a fast success did not return 0",
+              92: "the wrapped command's exit status was swallowed",
+              93: "a hang did not return 124", 94: "a hang was not killed promptly",
+              95: "the killed child was left running"}
+    check("with_timeout kills a hang and preserves real exit statuses",
+          t.returncode == 0, reason.get(t.returncode, ""))
+
+    check("a stalled ssh connection is made to time out",
+          "ServerAliveInterval" in script and "GIT_SSH_COMMAND" in script,
+          "git push blocked for 28h on 08-02 without this")
+    check("the run caps its own lifetime", "WATCHDOG" in script and "MAX_RUNTIME" in script,
+          "so a stuck run loses its own night, not the next one")
+    # Every git call that touches the network must go through with_timeout. Match
+    # on "contains", not "starts with" — these lines begin with `if` or the
+    # wrapper itself, so an anchored test would pass on an empty set and assert
+    # nothing at all.
+    bare = [l.strip() for l in script.splitlines()
+            if ("git push" in l or "git fetch" in l)
+            and not l.strip().startswith("#") and "with_timeout" not in l]
+    check("every network command is wrapped", not bare,
+          f"unwrapped: {bare}" if bare else "no bare git push/fetch left")
+
+    # The installed copy is what actually runs; the tracked copy is what survives
+    # a rebuild. Drift between them means the fix exists only in one place.
+    installed = Path.home() / "Library/LaunchAgents/com.show-h2h.nightly-refresh.plist"
+    tracked = ROOT / "scripts" / "com.show-h2h.nightly-refresh.plist"
+    if installed.exists():
+        check("the installed plist matches the tracked one",
+              installed.read_text() == tracked.read_text(),
+              "cp scripts/*.plist ~/Library/LaunchAgents/ if this fails")
+        check("the job runs under caffeinate", "caffeinate" in installed.read_text(),
+              "or the Mac sleeps mid-run, as it did on 08-02")
+
 finally:
     shutil.rmtree(work, ignore_errors=True)
 

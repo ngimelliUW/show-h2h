@@ -63,7 +63,11 @@ git commit -am "refresh data" && git push
 commits `data/seed.db` — which is what makes new games permanent, since the app's
 own button writes to Streamlit Cloud's ephemeral disk and is lost on restart.
 
-Scheduled by `~/Library/LaunchAgents/com.show-h2h.nightly-refresh.plist`. The
+Scheduled by `~/Library/LaunchAgents/com.show-h2h.nightly-refresh.plist`, whose
+master copy is `scripts/com.show-h2h.nightly-refresh.plist` — install it with
+`cp scripts/com.show-h2h.nightly-refresh.plist ~/Library/LaunchAgents/` and
+`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.show-h2h.nightly-refresh.plist`.
+The
 machine is on `America/Chicago` and launchd honours local time through daylight
 saving, so it stays 2am Central without the twice-a-year drift a UTC cron would
 have. If the Mac is asleep at 2am, launchd runs the job on the next wake.
@@ -74,6 +78,28 @@ launchctl kickstart -k gui/$(id -u)/com.show-h2h.nightly-refresh  # run it now
 tail -f ~/Library/Logs/show-h2h/refresh.log
 launchctl bootout gui/$(id -u)/com.show-h2h.nightly-refresh  # remove it
 ```
+
+**A hung run used to cancel every night after it.** launchd will not start a
+second copy of a job whose label is already running, so one wedged process is
+silently fatal to the whole schedule — no error, no log line, just nothing.
+On 2026-08-02 the Mac slept during `git push`; GitHub had already taken the
+objects, but ssh had no keepalive configured and blocked on a dead socket for
+28 hours, so the 08-03 run never fired and two games went missing. Three things
+now make that impossible:
+
+- `caffeinate -i` wraps the job, so the machine won't idle-sleep mid-run. The
+  same run also moved off `ProcessType Background`, which the scheduler throttles
+  hard — that's what stretched 25 seconds of real work into 3h17m of wall clock.
+- `GIT_SSH_COMMAND` sets `ServerAliveInterval`, so a dead connection surfaces as
+  an error in about a minute instead of blocking forever.
+- `with_timeout` caps every network command, and a watchdog caps the whole run at
+  `MAX_RUNTIME`. Both compare against `date(1)` rather than counting sleeps, so
+  time the machine spends asleep still counts. A stuck run can now lose its own
+  night, never the next one.
+
+If freshness ever looks stale, check `pgrep -fl nightly-refresh` and
+`git rev-list --count origin/main..HEAD` before suspecting the ingest — "the job
+ran", "the data landed" and "the site got it" are three separate questions.
 
 **It can't run in GitHub Actions.** The Show API returns **403 to GitHub's
 runners** — verified with four different User-Agents including a real browser
