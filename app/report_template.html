@@ -905,24 +905,41 @@ function renderBoard() {
    ran. Only the second can tell a quiet week apart from a broken refresh, which
    is the failure worth catching — a laptop that stayed shut just stops updating,
    silently. */
+// Whole calendar days between a YYYY-MM-DD date and now, both read as local
+// dates. Hoisted out of renderFreshness so it can be tested directly at times
+// of day a page load won't reproduce on demand.
+//
+// Date.parse("2026-08-02") returns UTC MIDNIGHT, not local midnight, so
+// differencing it against Date.now() compares a calendar date to an instant.
+// Everything read correctly until UTC crossed midnight — 7pm Central — and then
+// yesterday's game started reporting as two days ago, and a pull from this
+// afternoon as yesterday. Both dates are therefore rebuilt at local midnight.
+// Rounding rather than flooring keeps a DST day, which is 23 or 25 hours, whole.
+function daysAgo(iso, now = new Date()) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || "");
+  if (!m) return null;
+  const then = new Date(+m[1], +m[2] - 1, +m[3]);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((today - then) / 86400000);
+}
+
 function renderFreshness() {
   const el = $("freshness");
   if (!el) return;
-  const days = (iso) => {
-    const t = Date.parse(iso);
-    return Number.isNaN(t) ? null : Math.floor((Date.now() - t) / 86400000);
-  };
-  const sinceCheck = days(DATA.checked);
-  const sinceGame = days(DATA.through);
+  const sinceCheck = daysAgo(DATA.checked);
+  const sinceGame = daysAgo(DATA.through);
 
   const parts = [];
+  // <= 0 rather than === 0: the dates are Central, so a viewer further west can
+  // legitimately be a day "behind" them. Reading that as "today" is right, and
+  // it beats printing "-1 days ago".
   if (DATA.through) {
-    parts.push(sinceGame === 0 ? "newest game today"
+    parts.push(sinceGame <= 0 ? "newest game today"
              : sinceGame === 1 ? "newest game yesterday"
              : `newest game ${sinceGame} days ago`);
   }
   if (DATA.checked) {
-    parts.push(sinceCheck === 0 ? "checked today"
+    parts.push(sinceCheck <= 0 ? "checked today"
              : sinceCheck === 1 ? "checked yesterday"
              : `checked ${sinceCheck} days ago`);
   }

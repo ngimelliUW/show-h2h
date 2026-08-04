@@ -120,6 +120,33 @@ with sync_playwright() as pw:
         # Games that don't count must still be listed and labelled. Silently
         # dropping them would leave the games table shorter than the number of
         # games played, with nothing on the page to explain the difference.
+        # Freshness must not depend on the hour it is read at. The original
+        # differenced Date.parse("YYYY-MM-DD"), which is UTC midnight, against
+        # Date.now() — correct all afternoon and off by one from 7pm Central,
+        # once UTC crossed midnight. A single check at whatever time the suite
+        # happens to run would have missed it, so this sweeps the clock.
+        sweep = frame.evaluate("""() => {
+            const at = (d, h) => new Date(2026, 7, d, h, 30);   // August 2026, local
+            const hours = [0, 1, 6, 12, 17, 19, 21, 23];
+            return {
+                sameDay:  hours.map(h => daysAgo('2026-08-03', at(3, h))),
+                dayBefore: hours.map(h => daysAgo('2026-08-02', at(3, h))),
+                twoBefore: hours.map(h => daysAgo('2026-08-01', at(3, h))),
+                acrossDst: daysAgo('2026-11-01', new Date(2026, 10, 2, 23, 30)),
+                bad: daysAgo('not-a-date'),
+            };
+        }""")
+        check(f"[{label}] 'today' reads as today at every hour",
+              set(sweep["sameDay"]) == {0}, f"got {sweep['sameDay']}")
+        check(f"[{label}] 'yesterday' reads as yesterday at every hour",
+              set(sweep["dayBefore"]) == {1}, f"got {sweep['dayBefore']}")
+        check(f"[{label}] two days ago reads as two at every hour",
+              set(sweep["twoBefore"]) == {2}, f"got {sweep['twoBefore']}")
+        check(f"[{label}] a 25-hour DST day still counts as one day",
+              sweep["acrossDst"] == 1, f"got {sweep['acrossDst']}")
+        check(f"[{label}] an unparseable date yields no claim",
+              sweep["bad"] is None, f"got {sweep['bad']}")
+
         # An earlier check left the window slider at 10; put it back to the full
         # span, or this counts rows in a window rather than the whole history.
         frame.evaluate("""() => { const s = document.getElementById('window-range');

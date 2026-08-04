@@ -10,7 +10,14 @@ from show_h2h import config
 
 
 def now_iso() -> str:
-    return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+    """Now, in the same zone games are stored in.
+
+    Bare .astimezone() uses whatever the host is set to, which is UTC on
+    Streamlit Cloud and Central on the Mac — so the same event got a different
+    date depending on which one wrote it. `checked` on the page is this value
+    sliced to ten characters, and it is compared against local game dates.
+    """
+    return datetime.now(timezone.utc).astimezone(config.LOCAL_TZ).isoformat(timespec="seconds")
 
 
 def connect() -> sqlite3.Connection:
