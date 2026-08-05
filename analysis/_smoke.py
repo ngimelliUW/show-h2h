@@ -60,10 +60,44 @@ check("games carry errors for both sides",
 check("games carry innings", all(g.get("inn") is not None for g in data["games"]))
 
 # The JS reads these by id; a rename in the template would silently break the page.
-for element in ("verdict", "wins-a", "wins-b", "whoami", "tabs", "cmp-bat",
+for element in ("verdict", "wins-a", "wins-b", "whoami", "nav", "tabs", "cmp-bat",
                 "cmp-pit", "feats", "form", "tbl-bat", "tbl-pit", "tbl-games",
-                "ko-a", "ko-b", "discipline", "pp-table", "pp-hits", "hr-table"):
+                "ko-a", "ko-b", "discipline", "pp-table", "pp-hits", "hr-table",
+                "eyebrow", "series-strip", "window-row", "season-body", "rules-body"):
     check(f"#{element} in template", f'id="{element}"' in html)
+
+# The season layer. Every field the page reads must exist even before a single
+# game has been played under the rules — the launch state of this feature is an
+# empty season, so "populated" is the variant, not the norm.
+season = data.get("season", {})
+check("season payload present", bool(season), ", ".join(sorted(season)))
+for key in ("start", "rules", "titles", "seasons", "series", "current",
+            "live_season", "pregame", "games_counted"):
+    check(f"season.{key} present", key in season)
+check("season carries both players' title counts",
+      set(season.get("titles", {})) == {config.MY_USERNAME, config.FRIEND_USERNAME},
+      str(season.get("titles")))
+# The page always draws a live series, even with nothing played, or the season
+# view renders as a blank column.
+current = season.get("current") or {}
+for key in ("season", "no", "postseason", "target", "max_games", "wins",
+            "games", "starters", "violations", "advantage"):
+    check(f"season.current.{key} present", key in current)
+check("the live series names a target and a maximum",
+      current.get("target", 0) > 0 and current.get("max_games", 0) >= current.get("target", 0),
+      f"first to {current.get('target')} of {current.get('max_games')}")
+
+# The ladder has to cover every margin a season can finish on, or some season
+# resolves to no advantage at all and the rules page shows a gap.
+rules = season.get("rules", {})
+length = rules.get("season_length", 0)
+ladder = {int(k) for k in rules.get("ladder", {})}
+check("the advantage ladder covers every reachable season margin",
+      ladder >= set(range((length + 1) // 2, length + 1)),
+      f"ladder {sorted(ladder)} for a {length}-series season")
+check("every prize in the ladder has wording on the rules page",
+      all(p in rules.get("advantage_text", {})
+          for prizes in rules.get("ladder", {}).values() for p in prizes))
 
 # Every DATA key the page reads must be one build() actually produces. This is
 # the check that would have caught a template shipping ahead of its payload:

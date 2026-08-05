@@ -17,7 +17,7 @@ import json
 import math
 from pathlib import Path
 
-from show_h2h import config, db
+from show_h2h import config, db, seasons
 
 TEMPLATE = Path(__file__).resolve().parents[2] / "app" / "report_template.html"
 OUT = Path(__file__).resolve().parents[2] / "dist" / "index.html"
@@ -163,6 +163,10 @@ def build() -> dict:
         "games": games,
         "coop": coop,
         "lines": lines,
+        # Series, seasons and the World Series. Small enough to send whole —
+        # a season is a few dozen games, not the thousands of per-game rows
+        # the leaderboards re-aggregate, so it needs no compact encoding.
+        "season": seasons.derive(),
     }
 
 

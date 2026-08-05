@@ -20,6 +20,9 @@ import sys
 from playwright.sync_api import sync_playwright
 
 URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8502"
+# Two levels. The stat tables are nested under STATS, so nothing in the second
+# row exists in the DOM as a visible control until the first row selects it.
+NAV = ["season", "rules", "stats"]
 TABS = ["overview", "matchup", "hitters", "pitchers", "games"]
 
 ok = True
@@ -29,6 +32,15 @@ def check(name: str, cond: bool, detail: str = "") -> None:
     global ok
     ok = ok and bool(cond)
     print(f"{'PASS' if cond else 'FAIL'}  {name}  {detail}")
+
+
+def go(frame, page, section: str, tab: str | None = None) -> None:
+    """Select a primary section, and optionally a stat tab beneath it."""
+    frame.click(f'#nav button[data-n="{section}"]')
+    page.wait_for_timeout(400)
+    if tab:
+        frame.click(f'#tabs button[data-t="{tab}"]')
+        page.wait_for_timeout(400)
 
 
 with sync_playwright() as pw:
@@ -50,7 +62,59 @@ with sync_playwright() as pw:
             page.close()
             continue
 
-        check(f"[{label}] all tabs present",
+        # ---- primary navigation and the two new sections
+        check(f"[{label}] primary nav present",
+              [b.inner_text().lower() for b in frame.query_selector_all("#nav button")] == NAV)
+        check(f"[{label}] season is the landing section",
+              frame.evaluate("() => !document.getElementById('tab-season').hidden"))
+        check(f"[{label}] stat tabs are hidden until STATS is chosen",
+              frame.evaluate("() => document.getElementById('tabs').hidden"))
+
+        check(f"[{label}] season view populated",
+              frame.evaluate("() => document.getElementById('season-body').children.length") > 0)
+        # The series is drawn as one pip per possible game. No pips means the
+        # live series never rendered, which is exactly how the launch state
+        # would look if it were broken rather than empty.
+        check(f"[{label}] the series strip draws its pips",
+              frame.evaluate("() => document.querySelectorAll('#series-strip .dot-pip').length")
+              == 2 * frame.evaluate("() => SEASON.current.target"),
+              f"first to {frame.evaluate('() => SEASON.current.target')}")
+        season_text = frame.evaluate(
+            "() => document.getElementById('season-body').innerText").lower()
+        check(f"[{label}] the season view names the trophy case and the ladder",
+              "trophy case" in season_text and "world series advantage" in season_text)
+        check(f"[{label}] the ladder covers every reachable margin",
+              frame.evaluate(
+                  "() => document.querySelectorAll('#season-body table.ladder tbody tr').length")
+              == frame.evaluate("() => Object.keys(SEASON.rules.ladder).length"))
+        # No tier is earned until every series is played — at 3-0 with five to
+        # go, every rung is still live. A highlighted row mid-season would be
+        # claiming an advantage nobody holds yet.
+        lit, decided = frame.evaluate("""() => {
+            const s = SEASON.live_season || {series: {}};
+            const played = Object.values(s.series || {}).reduce((a, b) => a + b, 0);
+            return [document.querySelectorAll('#season-body table.ladder tr.live').length,
+                    played === SEASON.rules.season_length];
+        }""")
+        check(f"[{label}] the ladder highlights a tier only once the season is settled",
+              (lit > 0) == decided, f"{lit} row(s) lit, season settled={decided}")
+
+        go(frame, page, "rules")
+        rules_text = frame.evaluate(
+            "() => document.getElementById('rules-body').innerText").lower()
+        check(f"[{label}] rules page renders", len(rules_text) > 800, f"{len(rules_text)} chars")
+        for phrase in ("series", "world series", "rotation", "home field"):
+            check(f"[{label}] rules page covers {phrase}", phrase in rules_text)
+        # Numbers on the rules page must come from the payload, not from prose
+        # typed alongside it, or the page drifts from the engine it describes.
+        length = frame.evaluate("() => SEASON.rules.season_length")
+        check(f"[{label}] the rules page states the configured season length",
+              f"{length}-series season" in rules_text or f"{length} series" in rules_text,
+              f"season_length={length}")
+
+        # ---- everything below is the stat layer, one level down
+        go(frame, page, "stats", "overview")
+        check(f"[{label}] all stat tabs present",
               [b.inner_text().lower() for b in frame.query_selector_all("#tabs button")]
               == [t.upper().lower() for t in TABS])
         check(f"[{label}] feats populated",
@@ -94,9 +158,20 @@ with sync_playwright() as pw:
                 f"() => !document.getElementById('tab-{tab}').hidden")
             check(f"[{label}] tab {tab} shows", visible)
 
+        # Leaving STATS must put the stat tables away. They used to be shown by
+        # tab alone, so a section change left the previous panel on screen under
+        # the new heading.
+        go(frame, page, "season")
+        check(f"[{label}] leaving stats hides every stat panel",
+              frame.evaluate("() => TABS.every(([id]) => "
+                             "document.getElementById('tab-' + id).hidden)"))
+        check(f"[{label}] the window slider is hidden outside stats",
+              frame.evaluate("() => document.getElementById('window-row').hidden"))
+        go(frame, page, "stats", "overview")
+        check(f"[{label}] the window slider returns with stats",
+              frame.evaluate("() => !document.getElementById('window-row').hidden"))
+
         # the you-are switch must mirror the record
-        frame.query_selector('#tabs button[data-t="overview"]').click()
-        page.wait_for_timeout(400)
         before = frame.query_selector("#verdict").inner_text()
         other = frame.evaluate("() => DATA.players[1]")
         frame.query_selector(f'#whoami button[data-p="{other}"]').click()

@@ -186,10 +186,17 @@
   .seg button[aria-pressed="true"] { background: var(--on-ground); color: var(--ground); }
   .seg button:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
 
-  /* ---------- tabs ---------- */
+  /* ---------- tabs ----------
+     Two levels. The primary row is the competition — season, rules — and the
+     five stat tables hang beneath it, which is the whole point of the
+     hierarchy: the rivalry first, the evidence for it second. Both rows live
+     in one sticky wrapper rather than stacking two sticky elements, which
+     would need the first row's height hard-coded as the second one's offset. */
+  .navwrap {
+    position: sticky; top: 0; z-index: 20; background: var(--paper);
+    border-bottom: 1px solid var(--line);
+  }
   nav.tabs {
-    position: sticky; top: 0; z-index: 20;
-    background: var(--paper); border-bottom: 1px solid var(--line);
     display: flex; gap: 2px; overflow-x: auto; padding: 0 20px;
     max-width: 1180px; margin: 0 auto;
   }
@@ -202,7 +209,137 @@
   nav.tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--amber); }
   nav.tabs button:focus-visible { outline: 2px solid var(--home); outline-offset: -4px; }
 
-  section[hidden] { display: none; }
+  nav.tabs.primary button { font-size: 15px; letter-spacing: .14em; padding: 14px 16px 11px; }
+
+  /* The second row must not look like a second set of the same thing. Two
+     amber underlines stacked read as two competing tab bars rather than a
+     hierarchy, so the stat tabs drop the underline entirely and select as a
+     filled chip — the inverse of the segmented controls up in the dark band.
+     The row also carries no fill of its own: a background here is clipped to
+     the 1180px column and floats as a slab that reaches neither page edge. */
+  nav.subtabs {
+    border-top: 1px solid var(--line-soft);
+    padding-top: 5px; padding-bottom: 6px; gap: 4px;
+  }
+  nav.subtabs button {
+    font-size: 11.5px; letter-spacing: .09em; padding: 6px 12px;
+    border-bottom: 0; border-radius: 999px;
+  }
+  /* Inverted against the page rather than painted with --ground: that token
+     does not change between themes and sits within two points of dark-mode
+     --paper, so a chip filled with it vanishes on a dark background. */
+  nav.subtabs button[aria-selected="true"] {
+    background: var(--text); color: var(--paper);
+  }
+  nav.subtabs button:hover:not([aria-selected="true"]) {
+    background: var(--line-soft); color: var(--text);
+  }
+  nav.subtabs button:focus-visible { outline-offset: 1px; }
+  nav.subtabs[hidden] { display: none; }
+  @media (max-width: 560px) {
+    nav.tabs.primary button { font-size: 13px; padding: 12px 12px 9px; }
+    nav.subtabs button { font-size: 11px; padding: 6px 10px; }
+  }
+
+  /* ---------- season ----------
+     A series is short enough to draw literally: one pip per possible game,
+     filled as they are won. It reads at a glance in a way "2-1" does not, and
+     it shows how much rope is left, which is the part that matters mid-series. */
+  .dots { display: flex; gap: 6px; align-items: center; }
+  .dot-pip {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid currentColor; opacity: .32;
+  }
+  .dot-pip.on { opacity: 1; background: currentColor; }
+  .board .dots { color: var(--on-ground); }
+  .series-line {
+    display: flex; gap: 14px 20px; align-items: center; flex-wrap: wrap;
+    justify-content: center;
+  }
+  .series-side { display: flex; align-items: center; gap: 9px; }
+  .series-who {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .04em;
+    color: var(--on-ground-muted); white-space: nowrap;
+  }
+  .ws-flag {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .16em;
+    font-size: 11px; color: var(--ground); background: var(--amber);
+    padding: 3px 10px; border-radius: 999px; display: inline-block;
+  }
+
+  .trophies { display: flex; gap: 18px; flex-wrap: wrap; }
+  .trophy {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    padding: 15px 18px; flex: 1 1 220px; display: flex; align-items: center; gap: 14px;
+  }
+  .trophy .count {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 40px; font-weight: 700; line-height: 1;
+  }
+  .trophy .who { display: flex; flex-direction: column; gap: 2px; }
+  .trophy .who b { font-size: 14px; overflow-wrap: anywhere; }
+  .trophy .who span { font-size: 11.5px; color: var(--muted); }
+  .pennants { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+  .pennant { font-size: 15px; line-height: 1; }
+
+  /* The ladder is a rules table that doubles as a live readout: the row you
+     would earn today is lit, so the season standing has visible consequences
+     without anyone doing the arithmetic. */
+  table.ladder td.tier {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 15px; font-weight: 700; width: 74px; text-align: left;
+  }
+  table.ladder td.prize { font-family: var(--body); font-size: 13px; text-align: left; }
+  table.ladder tr.live td { background: color-mix(in srgb, var(--amber) 15%, transparent); }
+  table.ladder tr.live td.tier { color: var(--amber); }
+  table.ladder tr.live td.prize { font-weight: 600; }
+
+  .rot { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
+  .rot-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .rot-arms { display: flex; gap: 6px; flex-wrap: wrap; }
+  .arm {
+    font-family: var(--mono); font-size: 12px; padding: 2px 9px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--surface);
+  }
+  .arm.dup { border-color: var(--away); color: var(--away); font-weight: 700; }
+  .warn {
+    border-left: 3px solid var(--away); background: color-mix(in srgb, var(--away) 8%, transparent);
+    padding: 10px 14px; border-radius: 0 5px 5px 0; font-size: 13px;
+  }
+  .empty {
+    text-align: center; padding: 40px 22px; color: var(--muted);
+    border: 1px dashed var(--line); border-radius: 6px; background: var(--surface);
+  }
+  .empty .big {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .1em;
+    font-size: 19px; color: var(--text); margin-bottom: 6px;
+  }
+
+  /* ---------- rules ---------- */
+  .rules { max-width: 74ch; }
+  .rules h3 {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .09em;
+    font-size: 15px; margin: 26px 0 6px;
+  }
+  .rules p { font-size: 14px; margin: 8px 0; }
+  .rules ul { font-size: 14px; padding-left: 20px; margin: 8px 0; }
+  .rules li { margin: 5px 0; }
+  .rules strong { font-weight: 700; }
+  .chain {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin: 14px 0 18px; font-family: var(--mono); font-size: 12.5px;
+  }
+  .chain b {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 5px;
+    padding: 7px 12px; font-weight: 600; display: block;
+  }
+  .chain i { color: var(--muted); font-style: normal; }
+
+  /* `hidden` is only a UA-stylesheet `display: none`, so any author rule that
+     sets display — and every flex row below does — silently outranks it and the
+     element stays on screen. Anything toggled by that attribute needs saying
+     again here. */
+  section[hidden], .window-row[hidden], .series-line[hidden], nav[hidden] { display: none; }
   h2 {
     font-family: var(--display); text-transform: uppercase; letter-spacing: .07em;
     font-size: 21px; margin: 34px 0 12px; text-wrap: balance;
@@ -330,7 +467,7 @@
 <div class="board">
   <div class="board-inner">
     <div class="eyebrow-row">
-      <span class="eyebrow">MLB The Show 26 · Diamond Dynasty · head to head</span>
+      <span class="eyebrow" id="eyebrow"></span>
       <span class="eyebrow freshness" id="freshness"></span>
     </div>
     <div class="score-row">
@@ -352,8 +489,9 @@
         <span class="team-tag" id="tag-b"></span>
       </div>
     </div>
+    <div class="series-line" id="series-strip"></div>
     <div class="verdict" id="verdict"></div>
-    <div class="window-row">
+    <div class="window-row" id="window-row">
       <span class="whoami-label">Window</span>
       <input type="range" id="window-range" min="5" step="1"
              aria-label="Limit every stat on the page to this many recent games">
@@ -370,10 +508,21 @@
   </div>
 </div>
 
-<nav class="tabs" id="tabs" role="tablist"></nav>
+<div class="navwrap">
+  <nav class="tabs primary" id="nav" role="tablist" aria-label="Sections"></nav>
+  <nav class="tabs subtabs" id="tabs" role="tablist" aria-label="Statistics" hidden></nav>
+</div>
 
 <div class="wrap">
-  <section id="tab-overview" role="tabpanel">
+  <section id="tab-season" role="tabpanel">
+    <div id="season-body"></div>
+  </section>
+
+  <section id="tab-rules" role="tabpanel" hidden>
+    <div id="rules-body" class="rules"></div>
+  </section>
+
+  <section id="tab-overview" role="tabpanel" hidden>
     <h2>Head to head</h2>
     <p class="note" id="cmp-note"></p>
     <div class="grid2">
@@ -524,9 +673,20 @@ const LINES = {
   hi: expand(DATA.lines.hi),
 };
 
+// The league layer — series, seasons, the World Series. Defaulted hard, because
+// this is the newest key in the payload and the one most likely to be missing
+// when a template deploys ahead of its builder.
+const SEASON = Object.assign({
+  start: "", titles: {}, seasons: [], series: [], current: null,
+  live_season: null, pregame: true, games_counted: 0,
+  rules: { series_wins: 3, season_length: 8, world_series_wins: 4,
+           ladder: {}, advantage_text: {} },
+}, DATA.season || {});
+
 const [P1, P2] = DATA.players;
 const COLOR = { [P1]: "var(--home)", [P2]: "var(--away)" };
 let viewer = P1;
+let nav = "season";
 let tab = "overview";
 
 const $ = (id) => document.getElementById(id);
@@ -853,7 +1013,26 @@ function streaks(res) {
   return { cur, kind, bw, bl };
 }
 
-/* ---------------- scoreboard ---------------- */
+/* ---------------- scoreboard ----------------
+   The band answers whichever question the section you are in is asking. On
+   SEASON that is "where does this series stand", on STATS it is the lifetime
+   record the window slider is filtering. Showing a series score above a page of
+   career leaderboards — or a career record above a best-of-five — reads as the
+   wrong number rather than a different one, and the two never fight for the
+   same slot this way. */
+function seriesLabel(s) {
+  if (!s) return "";
+  return s.postseason ? "World Series"
+                      : `Series ${s.no} of ${SEASON.rules.season_length}`;
+}
+
+function pips(won, target, colour) {
+  return `<span class="dots" style="color:${colour}">`
+    + Array.from({ length: target }, (_, i) =>
+        `<span class="dot-pip${i < won ? " on" : ""}"></span>`).join("")
+    + "</span>";
+}
+
 function renderBoard() {
   const you = viewer, them = opponentOf(viewer);
   const r = record(you);
@@ -863,27 +1042,63 @@ function renderBoard() {
   $("tag-b").textContent = "opponent";
   $("sw-a").style.background = COLOR[you];
   $("sw-b").style.background = COLOR[them];
-  $("wins-a").textContent = r.w;
-  $("wins-b").textContent = r.l;
-  $("wins-a").className = "wins" + (r.w >= r.l ? " lead" : "");
-  $("wins-b").className = "wins" + (r.l > r.w ? " lead" : "");
 
-  // Phrased from the viewer's side, and always with their own record first, so
-  // the sentence and the scoreboard above it never disagree about which number
-  // belongs to whom.
-  const pct = rate(r.w / Math.max(r.w + r.l, 1));
-  const verb = r.w > r.l ? "lead" : r.w < r.l ? "trail" : "are level with";
-  $("verdict").textContent =
-    r.w === r.l ? `You are level with ${them} at ${r.w}–${r.l}`
-                : `You ${verb} ${them} ${r.w}–${r.l} (${pct})`;
+  const cur = SEASON.current;
+  const seasonView = nav === "season" && cur;
+  $("window-row").hidden = nav !== "stats";
+  $("series-strip").hidden = !seasonView;
+
+  if (seasonView) {
+    const yours = cur.wins[you] || 0, theirs = cur.wins[them] || 0;
+    $("eyebrow").textContent =
+      `Season ${cur.season} · ${seriesLabel(cur)} · best of ${cur.max_games}`;
+    $("wins-a").textContent = yours;
+    $("wins-b").textContent = theirs;
+    $("wins-a").className = "wins" + (yours >= theirs ? " lead" : "");
+    $("wins-b").className = "wins" + (theirs > yours ? " lead" : "");
+    $("series-strip").innerHTML =
+      (cur.postseason ? '<span class="ws-flag">World Series</span>' : "")
+      + `<span class="series-side">${pips(yours, cur.target, COLOR[you])}`
+      + `<span class="series-who">${you}</span></span>`
+      + `<span class="series-side"><span class="series-who">${them}</span>`
+      + `${pips(theirs, cur.target, COLOR[them])}</span>`;
+
+    const played = cur.games.length;
+    $("verdict").textContent = SEASON.pregame
+      ? `Season 1 opens with your next game — first to ${cur.target} takes the series`
+      : played === 0 ? `A new series. First to ${cur.target}.`
+      : yours === theirs ? `Series level at ${yours}–${theirs}`
+      : `You ${yours > theirs ? "lead" : "trail"} the series ${yours}–${theirs}`;
+  } else {
+    $("eyebrow").textContent = "MLB The Show 26 · Diamond Dynasty · head to head";
+    $("wins-a").textContent = r.w;
+    $("wins-b").textContent = r.l;
+    $("wins-a").className = "wins" + (r.w >= r.l ? " lead" : "");
+    $("wins-b").className = "wins" + (r.l > r.w ? " lead" : "");
+
+    // Phrased from the viewer's side, and always with their own record first, so
+    // the sentence and the scoreboard above it never disagree about which number
+    // belongs to whom.
+    const pct = rate(r.w / Math.max(r.w + r.l, 1));
+    const verb = r.w > r.l ? "lead" : r.w < r.l ? "trail" : "are level with";
+    $("verdict").textContent =
+      r.w === r.l ? `You are level with ${them} at ${r.w}–${r.l}`
+                  : `You ${verb} ${them} ${r.w}–${r.l} (${pct})`;
+  }
 
   const res = r.gs.map((g) => g.res).filter(Boolean);
   const st = streaks(res);
   const last10 = res.slice(-10);
+  const ls = SEASON.live_season;
   // Ties and no contests are shown only when there are any, but they are shown:
   // without them the scoreboard reads 80–37 over 119 games and the missing two
   // look like an error rather than a rule.
-  const strip = [
+  const strip = seasonView ? [
+    ["Season", `${(ls && ls.series[you]) || 0}–${(ls && ls.series[them]) || 0}`],
+    ["Titles", `${SEASON.titles[you] || 0}–${SEASON.titles[them] || 0}`],
+    ["All-time", `${r.w}–${r.l}`],
+    ["Games", r.gs.length],
+  ] : [
     ["Games", r.gs.length],
     ["Run diff", (r.rf - r.ra > 0 ? "+" : "") + (r.rf - r.ra)],
     ["Runs", `${r.rf}–${r.ra}`],
@@ -1494,18 +1709,275 @@ function renderMatchup() {
     + "</tbody>";
 }
 
-/* ---------------- tabs ---------------- */
+/* ---------------- season ----------------
+   Written for the empty case first. The league opens with nothing played, so
+   for the first week or two this page IS the zero state — and a zero state that
+   looks like a bug is worse than no page at all. Every block below either says
+   something true about a season in progress or says, in words, that it hasn't
+   started yet. */
+// LEAGUE_START may be a bare date or a local timestamp, because the league can
+// be armed mid-afternoon — as this one was, so that the games already played
+// that day stayed out of Season 1. Raw ISO in a sentence reads like a database
+// field, so spell the time out when there is one.
+function fmtStart() {
+  const [d, t] = (SEASON.start || "").split("T");
+  if (!t) return d || "—";
+  const [h, m] = t.split(":");
+  return `${d} at ${Number(h) % 12 || 12}:${m}${Number(h) < 12 ? "am" : "pm"}`;
+}
+
+function ladderRows(liveTier) {
+  const text = SEASON.rules.advantage_text;
+  return Object.keys(SEASON.rules.ladder)
+    .map(Number).sort((a, b) => b - a)
+    .map((wins) => {
+      const prizes = SEASON.rules.ladder[String(wins)] || [];
+      const loss = SEASON.rules.season_length - wins;
+      return `<tr class="${wins === liveTier ? "live" : ""}">
+        <td class="tier">${wins}–${loss}</td>
+        <td class="prize">${prizes.length
+          ? prizes.map((p) => text[p] || p).join(" · ")
+          : "Nothing — a straight best-of-seven"}</td></tr>`;
+    }).join("");
+}
+
+function rotationCard(s) {
+  const rows = [viewer, opponentOf(viewer)].map((u) => {
+    const arms = s.starters[u] || [];
+    const seen = {};
+    arms.forEach((a) => { seen[a] = (seen[a] || 0) + 1; });
+    const left = Math.max(0, s.max_games - arms.length);
+    const allowed = (s.postseason && (s.advantage[u] || []).includes("repeat"));
+    return `<div class="rot-row">
+      <span class="strip-k" style="min-width:11ch;color:${COLOR[u]}">${u}</span>
+      <span class="rot-arms">${arms.length
+        ? arms.map((a) => `<span class="arm${seen[a] > 1 ? " dup" : ""}">${a}</span>`).join("")
+        : '<span class="arm" style="opacity:.55">none yet</span>'}</span>
+      <span class="note" style="margin:0">${arms.length} used${
+        left ? `, up to ${left} more needed` : ""}${
+        allowed ? " · may repeat one" : ""}</span></div>`;
+  }).join("");
+  const warn = s.violations.map((v) =>
+    `<div class="warn"><strong>${v.owner}</strong> started ${
+      v.repeated.join(", ")} more than once${
+      v.allowance ? ` — more than the ${v.allowance} repeat this advantage allows` : ""
+    }. The rotation rule says a pitcher starts once per series.</div>`).join("");
+  const unknown = s.starters_unknown
+    ? `<p class="note">${s.starters_unknown} game(s) in this series have no box score yet,
+       so their starters aren't known — this check isn't complete.</p>` : "";
+  return `<div class="card"><div class="card-head">Rotation — a pitcher starts once per series</div>
+      <div class="rot">${rows}</div></div>${warn}${unknown}`;
+}
+
+function renderSeason() {
+  const you = viewer, them = opponentOf(viewer);
+  const cur = SEASON.current, ls = SEASON.live_season;
+  const out = [];
+
+  if (SEASON.pregame) {
+    out.push(`<div class="empty" style="margin-top:28px">
+      <div class="big">Season 1 opens with your next game</div>
+      <p class="note" style="margin:0 auto">The league was armed ${fmtStart()}, and the first
+      head-to-head game after it is Season 1, Series 1, Game 1. Until then there is nothing to
+      stand on — no series, no standings, no titles. Everything already played stays in the
+      stat tabs, but it belongs to no season: the two of you start level at nothing apiece.</p>
+      </div>`);
+  }
+
+  // ---- the live series
+  if (cur && !SEASON.pregame) {
+    const yours = cur.wins[you] || 0, theirs = cur.wins[them] || 0;
+    out.push(`<h2>${seriesLabel(cur)}${cur.postseason ? "" : ` · Season ${cur.season}`}</h2>`);
+    out.push(`<p class="note">First to ${cur.target}. Ties and no contests are replayed —
+      they belong to the series but move neither side.</p>`);
+    // A series that has just opened has nothing to tabulate. An empty table
+    // with headers reads as data that failed to load; a sentence does not.
+    // Result before the scores, so both run columns land on the same side of
+    // the table's left/right alignment split and read as a pair.
+    out.push(cur.games.length
+      ? `<div class="card scroll"><table><thead><tr>
+          <th>#</th><th>Date</th><th></th><th>${you}</th><th>${them}</th></tr></thead><tbody>`
+        + cur.games.map((g, i) => `<tr>
+            <td>${i + 1}</td>
+            <td class="name">${(g.at || "").slice(0, 10)}</td>
+            <td class="name">${g.decisive
+              ? `<span class="${g.winner === you ? "w" : "l"}">${g.winner === you ? "W" : "L"}</span>`
+              : `<span class="pill">${g.status.replace("_", " ")}</span>`}</td>
+            <td class="${g.winner === you ? "hi" : ""}">${g.runs[you]}</td>
+            <td class="${g.winner === them ? "hi" : ""}">${g.runs[them]}</td></tr>`).join("")
+        + `</tbody></table></div><p class="note">Series ${yours}–${theirs}.</p>`
+      : `<div class="empty"><div class="big">First pitch pending</div>
+         <p class="note" style="margin:0 auto">The last series is settled. Whoever takes
+         ${cur.target} of the next ${cur.max_games} takes this one.</p></div>`);
+    if (cur.games.length) out.push(rotationCard(cur));
+  }
+
+  // ---- the season standing
+  out.push(`<h2>Season ${ls ? ls.no : 1}</h2>`);
+  out.push(`<p class="note">The standing is <strong>series won</strong>, not games won —
+    taking a series 3–0 and 3–2 are worth exactly the same, so there is nothing to gain
+    from running up a decided one.</p>`);
+  const w = (ls && ls.series[you]) || 0, l = (ls && ls.series[them]) || 0;
+  const done = w + l, len = SEASON.rules.season_length;
+  out.push(`<div class="feats">
+    <div class="feat"><div class="k">Series</div><div class="v">${w}–${l}</div>
+      <div class="s">${done} of ${len} played</div></div>
+    <div class="feat"><div class="k">Remaining</div><div class="v">${len - done}</div>
+      <div class="s">then the World Series</div></div>
+    <div class="feat"><div class="k">Titles</div><div class="v">${
+      SEASON.titles[you] || 0}–${SEASON.titles[them] || 0}</div>
+      <div class="s">${you} — ${them}</div></div></div>`);
+
+  // ---- the ladder, lit only once a tier is actually settled
+  //
+  // Mid-season no row can be highlighted, because no tier has been earned: at
+  // 3-0 with five to play every rung from 8-0 down to 3-5 is still live. Saying
+  // "the highlighted row is what you would take" while highlighting nothing is
+  // the kind of small lie that makes a reader stop trusting the rest.
+  const leader = w >= l ? you : them, lead = Math.max(w, l);
+  const settled = done === len;
+  out.push(`<h2>What this season is worth</h2>`);
+  out.push(`<p class="note">The margin sets the terms of the World Series, so a series
+    still matters after the season is decided — one of you is climbing a rung, the other is
+    trying to deny it. ${settled
+      ? (w === l ? `<strong>Settled level at ${w}–${l}: neither of you carries anything in.</strong>`
+                 : `<strong>Settled: ${leader} earned the ${lead}–${len - lead} tier.</strong>`)
+      : done ? `At ${w}–${l} with ${len - done} to play, ${you} can still finish anywhere
+                from ${w + (len - done)}–${l} to ${w}–${l + (len - done)}. Nothing is locked
+                in until all ${len} are played.`
+             : `Nothing is earned until the season's ${len} series are played.`}</p>`);
+  out.push(`<div class="card scroll"><table class="ladder"><thead><tr>
+      <th>Season</th><th>World Series advantage</th></tr></thead><tbody>`
+    + ladderRows(settled && w !== l ? lead : -1) + `</tbody></table></div>`);
+
+  // ---- trophy case
+  out.push(`<h2>Trophy case</h2>`);
+  out.push(`<div class="trophies">` + [you, them].map((u) => `
+    <div class="trophy">
+      <span class="count" style="color:${COLOR[u]}">${SEASON.titles[u] || 0}</span>
+      <span class="who"><b>${u}</b>
+        <span>${SEASON.titles[u] === 1 ? "championship" : "championships"}</span>
+        <span class="pennants">${"🏆".repeat(SEASON.titles[u] || 0)}</span></span>
+    </div>`).join("") + `</div>`);
+
+  const closed = SEASON.seasons.filter((s) => s.complete);
+  out.push(closed.length
+    ? `<div class="card scroll" style="margin-top:14px"><table><thead><tr>
+        <th>Season</th><th>Series</th><th>Champion</th><th>Ended</th></tr></thead><tbody>`
+      + closed.map((s) => `<tr><td>${s.no}</td>
+          <td>${s.series[you]}–${s.series[them]}</td>
+          <td class="name"><span class="dot" style="background:${COLOR[s.champion]}"></span>${s.champion}</td>
+          <td class="name">${(s.ended || "").slice(0, 10)}</td></tr>`).join("")
+      + `</tbody></table></div>`
+    : `<p class="note">No season has been completed yet. The first champion is
+       ${SEASON.rules.season_length} series and a best-of-${
+         SEASON.rules.world_series_wins * 2 - 1} away.</p>`);
+
+  $("season-body").innerHTML = out.join("");
+}
+
+/* ---------------- rules ----------------
+   Every number here comes out of the payload rather than being typed into the
+   prose, so the page cannot drift from the engine that enforces it. If the two
+   of them shorten a season, this page changes with it. */
+function renderRules() {
+  const R = SEASON.rules;
+  const games = R.series_wins * 2 - 1, ws = R.world_series_wins * 2 - 1;
+  $("rules-body").innerHTML = `
+    <h2>How this works</h2>
+    <p class="note">The Show keeps no record between the two of you and no season
+    structure at all, so this is ours. Nothing here is entered by hand — every rule
+    below is worked out from the games themselves, which means the site can tell you
+    when one has been broken.</p>
+
+    <div class="chain">
+      <b>game</b><i>→</i><b>best-of-${games} series</b><i>→</i>
+      <b>${R.season_length}-series season</b><i>→</i><b>best-of-${ws} World Series</b>
+    </div>
+
+    <h3>Series</h3>
+    <p>First to ${R.series_wins} wins. A tie or a no contest is replayed: it belongs to the
+    series but moves neither side, which is the same rule the record has always used —
+    a game called before five innings never happened, and one called level is a tie.</p>
+
+    <h3>Season</h3>
+    <p>${R.season_length} series. The standing is <strong>series won, not games won</strong>.
+    Winning a series 3–0 and 3–2 count the same, so there is nothing to be gained from
+    running up a series already decided.</p>
+
+    <h3>The World Series</h3>
+    <p>Once ${R.season_length} series have closed, the next series <em>is</em> the World
+    Series — best of ${ws}. There is nothing to declare and no bracket: with two teams,
+    a round that both of you are guaranteed to reach and that eliminates one of two
+    teams is just a shorter World Series with a worse name.</p>
+    <p>The defending champion carries nothing into the next season. Every advantage is
+    re-earned, or a good run compounds into a runaway.</p>
+
+    <h3>What the season is worth</h3>
+    <p>The margin — not merely the win — sets the terms. A season already decided still
+    has something on it: one of you is climbing a rung, the other is trying to deny it.</p>
+    <div class="card scroll"><table class="ladder"><thead><tr>
+      <th>Season</th><th>World Series advantage</th></tr></thead><tbody>${
+        ladderRows(-1)}</tbody></table></div>
+    <p class="note">Home field is a real prize here: every game these two have ever played
+    was hosted by ${P1}, so ${P2} has never once had last at-bat.</p>
+
+    <h3>The rotation rule</h3>
+    <p><strong>A pitcher may start only once per series.</strong> A best-of-${games} can
+    therefore demand ${games} different starters, and the World Series up to ${ws}. It
+    applies in the regular season too: the point is that your <em>rotation</em> has to be
+    good, not one pitcher.</p>
+    <p>The single exception is the ${
+      Object.keys(R.ladder).map(Number).filter((n) =>
+        (R.ladder[String(n)] || []).includes("repeat")).sort()[0] || 6}–${
+      R.season_length - (Object.keys(R.ladder).map(Number).filter((n) =>
+        (R.ladder[String(n)] || []).includes("repeat")).sort()[0] || 6)} tier, which buys
+    exactly one second start in that World Series — an ace on short rest in the last game.</p>
+
+    <h3>How it is checked</h3>
+    <p>None of this is on the honour system. Every rule leaves a trace in data the site
+    already collects:</p>
+    <ul>
+      <li><strong>Home field</strong> — which account the game was hosted under.</li>
+      <li><strong>The rotation rule</strong> — the first pitching line of each game.</li>
+      <li><strong>A card ban</strong> — the banned name simply never appears in a box score.</li>
+      <li><strong>Series and season boundaries</strong> — the order the games were played in.</li>
+    </ul>
+    <p class="note">Season 1 opens with the first head-to-head game played after
+    <strong>${fmtStart()}</strong>. Nothing before it counts toward a season: the
+    ${DATA.games.length} games already on record stay in the stat tabs, but the two of you
+    start level at nothing apiece.</p>`;
+}
+
+/* ---------------- tabs ----------------
+   Two levels: the competition on top, the stat tables nested beneath it. The
+   five stat sections are untouched — only what decides their visibility moved. */
+// Rules sits beside Season because it explains it — they are one subject. Stats
+// goes last: it is the deepest section and the one with its own row of tabs, so
+// putting it between the two would split a pair and bury the second half.
+const NAV = [["season", "Season"], ["rules", "Rules"], ["stats", "Stats"]];
 const TABS = [["overview", "Overview"], ["matchup", "Matchup"], ["hitters", "Hitters"],
               ["pitchers", "Pitchers"], ["games", "Games"]];
+
 function renderTabs() {
+  $("nav").innerHTML = NAV.map(([id, label]) =>
+    `<button role="tab" data-n="${id}" aria-selected="${id === nav}">${label}</button>`).join("");
+  $("nav").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    nav = b.dataset.n; renderTabs(); showTab(); renderBoard();
+  }));
+
+  $("tabs").hidden = nav !== "stats";
   $("tabs").innerHTML = TABS.map(([id, label]) =>
     `<button role="tab" data-t="${id}" aria-selected="${id === tab}">${label}</button>`).join("");
   $("tabs").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
     tab = b.dataset.t; renderTabs(); showTab();
   }));
 }
+
 function showTab() {
-  TABS.forEach(([id]) => { $("tab-" + id).hidden = id !== tab; });
+  $("tab-season").hidden = nav !== "season";
+  $("tab-rules").hidden = nav !== "rules";
+  TABS.forEach(([id]) => { $("tab-" + id).hidden = nav !== "stats" || id !== tab; });
 }
 
 function renderAll() {
@@ -1517,7 +1989,8 @@ function renderAll() {
     feats: renderFeats, never: renderNever, chase: renderChase, form: renderForm, matchup: renderMatchup,
     hitters: () => { controls("bat"); renderBoardTable("bat"); },
     pitchers: () => { controls("pit"); renderBoardTable("pit"); },
-    games: renderGames, tabs: () => { renderTabs(); showTab(); },
+    games: renderGames, season: renderSeason, rules: renderRules,
+    tabs: () => { renderTabs(); showTab(); },
   };
   for (const [name, fn] of Object.entries(sections)) {
     try {

@@ -120,6 +120,11 @@ fi
 # Gates. Publishing wrong data unattended is worse than publishing nothing.
 uv run python analysis/_verify.py || fail "verification failed — NOT publishing"
 uv run python analysis/_flip.py   || fail "perspective mirror failed — NOT publishing"
+# The season layer decides what the front page says the two of them are playing
+# for, and a new game is exactly what moves it. A series that closed on the
+# wrong game, or a rotation violation claimed against a legal start, would go
+# out unattended otherwise.
+uv run python analysis/_seasons_check.py || fail "season derivation failed — NOT publishing"
 
 # snapshot refuses to overwrite with a database that lost rows.
 uv run python -m show_h2h.ingest snapshot || fail "snapshot refused — NOT publishing"
