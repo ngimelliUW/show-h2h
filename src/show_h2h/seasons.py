@@ -60,8 +60,9 @@ def _games() -> list[dict]:
     df = db.query(
         """
         SELECT v.game_uuid, v.played_at, v.my_runs, v.their_runs, v.status,
-               v.result, v.counts_record
+               v.result, v.counts_record, g.home_username
         FROM v_h2h_games v
+        JOIN games g ON g.game_uuid = v.game_uuid
         WHERE v.played_at >= ?
         ORDER BY v.played_at
         """,
@@ -78,6 +79,10 @@ def _games() -> list[dict]:
             "status": r["status"],
             "decisive": decisive,
             "winner": (me if r["result"] == "W" else them) if decisive else None,
+            # Who hosted. The only lever in the whole design that had never
+            # varied once in 126 games, which is what makes splitting it worth
+            # a rule at all.
+            "home": r["home_username"],
         })
     return out
 
@@ -143,6 +148,33 @@ def _audit(series: dict, starters: dict) -> None:
             })
 
 
+def _host(series_no: int, postseason: bool, advantage: dict[str, tuple]) -> str | None:
+    """Whose house this series is played at.
+
+    In the regular season hosting simply alternates, so an even-length season
+    splits the home dates evenly and neither player spends a whole season
+    without last at-bat — which is exactly what happened across all 126 games
+    before the league opened.
+
+    The postseason does not alternate: home field there is the prize won by the
+    season, so it belongs to whoever earned it. A dead-heat season earns nobody
+    home field, and returns None rather than inventing a host.
+    """
+    if postseason:
+        return next((u for u, prizes in advantage.items() if "home" in prizes), None)
+    first = config.USERNAMES.index(config.FIRST_HOST) if config.FIRST_HOST in config.USERNAMES else 0
+    return config.USERNAMES[(first + series_no - 1) % len(config.USERNAMES)]
+
+
+def _venue(series: dict) -> None:
+    """Games played somewhere other than the series' designated host."""
+    host = series["host"]
+    series["wrong_venue"] = [] if host is None else [
+        {"at": g["at"], "hosted_by": g["home"]}
+        for g in series["games"] if g["home"] and g["home"] != host
+    ]
+
+
 def _new_series(season_no: int, series_no: int, postseason: bool,
                 advantage: dict[str, tuple]) -> dict:
     target = config.WORLD_SERIES_WINS if postseason else config.SERIES_WINS
@@ -150,6 +182,7 @@ def _new_series(season_no: int, series_no: int, postseason: bool,
         "season": season_no,
         "no": series_no,
         "postseason": postseason,
+        "host": _host(series_no, postseason, advantage),
         "target": target,
         # A best-of-five is at most five decisive games; ties and no contests
         # are replayed and can push the actual game count past it.
@@ -225,6 +258,7 @@ def derive() -> dict:
 
     for s in series:
         _audit(s, starters)
+        _venue(s)
 
     # Always describe what comes next, even before a single pitch: the launch
     # state of this feature is an empty Season 1, and a page with nothing to
@@ -233,6 +267,7 @@ def derive() -> dict:
         season_no, closed + 1, closed >= config.SEASON_LENGTH, advantage)
     if current is not open_series:
         _audit(current, starters)
+        _venue(current)
 
     live_season = next((s for s in seasons if s["no"] == season_no), None)
     if live_season is None:
@@ -249,6 +284,16 @@ def derive() -> dict:
             "ended": None,
         }
 
+    # How the home dates have actually fallen, per season. The rule is that they
+    # split evenly, so this is the number the rule is checked against — counted
+    # from series already played rather than from the schedule, because a series
+    # played at the wrong house should show up here as the imbalance it is.
+    for s in seasons + ([live_season] if live_season not in seasons else []):
+        played = [x for x in series if x["season"] == s["no"] and not x["postseason"]]
+        s["hosted"] = {u: sum(1 for x in played if x["host"] == u)
+                       for u in config.USERNAMES}
+        s["venue_breaches"] = sum(len(x["wrong_venue"]) for x in played)
+
     return {
         "start": config.LEAGUE_START,
         "rules": {
@@ -257,6 +302,7 @@ def derive() -> dict:
             "world_series_wins": config.WORLD_SERIES_WINS,
             "ladder": {str(k): list(v) for k, v in config.ADVANTAGE_LADDER.items()},
             "advantage_text": dict(config.ADVANTAGE_TEXT),
+            "first_host": config.FIRST_HOST,
         },
         "players": [me, them],
         "titles": titles,
@@ -279,14 +325,19 @@ def main() -> int:
     print(f"\nSeason {season['no']}: "
           + " / ".join(f"{u} {n}" for u, n in season["series"].items())
           + f" ({config.SEASON_LENGTH} series)")
+    print("Home dates: "
+          + " / ".join(f"{u} {n}" for u, n in season.get("hosted", {}).items()))
     label = "World Series" if cur["postseason"] else f"Series {cur['no']}"
     print(f"{label} (best of {cur['max_games']}): "
           + " / ".join(f"{u} {n}" for u, n in cur["wins"].items())
-          + f" — {len(cur['games'])} game(s) played")
+          + f" — {len(cur['games'])} game(s) played"
+          + (f", at {cur['host']}'s" if cur["host"] else ", no host"))
     for user, names in cur["starters"].items():
         print(f"    {user}: {', '.join(names) or 'no starters yet'}")
     for v in cur["violations"]:
         print(f"  !! rotation rule: {v['owner']} started {', '.join(v['repeated'])} twice")
+    for v in cur["wrong_venue"]:
+        print(f"  !! venue: {v['at'][:10]} was hosted by {v['hosted_by']}, not {cur['host']}")
     return 0
 
 

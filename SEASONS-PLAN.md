@@ -49,6 +49,24 @@ The reason to use series anyway is not parity — it is that a series is a
 discrete, winnable trophy that resolves every couple of days, so the underdog
 banks real wins instead of watching a single lifetime counter.
 
+## 3b. Home dates
+
+**Hosting alternates every series**, so an eight-series season splits 4–4 and
+neither player goes a whole season without last at-bat. A series is played at
+one house from start to finish, and `FIRST_HOST` names who takes the first
+series of a season — defaulting to TallThibaut48, since he has never hosted.
+
+This is the rule with the most ground to make up. **All 126 games played before
+the league opened were hosted by LinguiniEater**, so his opponent has never once
+had last at-bat. With 44 of those games decided by a single run, that is not a
+cosmetic imbalance.
+
+The postseason is the exception: home field there is *won*, not scheduled, so
+the World Series is played wherever the advantage ladder puts it. A season that
+finishes level earns nobody home field and designates no host.
+
+Audited from `games.home_username` against the series' scheduled host.
+
 ## 4. The advantage ladder
 
 The prize scales with the **margin**, not the win. A binary reward would make

@@ -60,6 +60,14 @@ SERIES_WINS = int(get("SERIES_WINS", "3"))              # best-of-five
 SEASON_LENGTH = int(get("SEASON_LENGTH", "8"))          # series per season
 WORLD_SERIES_WINS = int(get("WORLD_SERIES_WINS", "4"))  # best-of-seven
 
+# Hosting alternates by series, so an even-length season splits evenly and each
+# player takes half the home dates. Defaults to the friend because every one of
+# the 126 games played before the league opened was hosted by MY_USERNAME —
+# the opponent has never had last at-bat, so he gets the first turn.
+#
+# The postseason ignores this: home field there is won, not rostered.
+FIRST_HOST = get("FIRST_HOST", FRIEND_USERNAME)
+
 # What winning the season by each margin buys in the World Series. Keyed by the
 # winner's series count, which is what the standings show — deriving it from the
 # margin instead reads fine and silently maps 6-2 and 8-0 to the same tier.

@@ -81,8 +81,23 @@ check("season carries both players' title counts",
 # view renders as a blank column.
 current = season.get("current") or {}
 for key in ("season", "no", "postseason", "target", "max_games", "wins",
-            "games", "starters", "violations", "advantage"):
+            "games", "starters", "violations", "advantage", "host", "wrong_venue"):
     check(f"season.current.{key} present", key in current)
+# Hosting alternates so a season splits its home dates evenly. The regular
+# season always has a host; only a dead-heat World Series has none.
+check("a regular-season series names its host",
+      current.get("postseason") or current.get("host") in
+      (config.MY_USERNAME, config.FRIEND_USERNAME), str(current.get("host")))
+live = season.get("live_season") or {}
+for key in ("hosted", "venue_breaches"):
+    check(f"season.live_season.{key} present", key in live)
+check("the home-date tally covers both players",
+      set(live.get("hosted", {})) == {config.MY_USERNAME, config.FRIEND_USERNAME},
+      str(live.get("hosted")))
+check("the first host is named in the rules payload",
+      season.get("rules", {}).get("first_host")
+      in (config.MY_USERNAME, config.FRIEND_USERNAME),
+      str(season.get("rules", {}).get("first_host")))
 check("the live series names a target and a maximum",
       current.get("target", 0) > 0 and current.get("max_games", 0) >= current.get("target", 0),
       f"first to {current.get('target')} of {current.get('max_games')}")

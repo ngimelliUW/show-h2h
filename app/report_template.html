@@ -1761,7 +1761,11 @@ function rotationCard(s) {
     `<div class="warn"><strong>${v.owner}</strong> started ${
       v.repeated.join(", ")} more than once${
       v.allowance ? ` — more than the ${v.allowance} repeat this advantage allows` : ""
-    }. The rotation rule says a pitcher starts once per series.</div>`).join("");
+    }. The rotation rule says a pitcher starts once per series.</div>`).join("")
+    + (s.wrong_venue || []).map((v) =>
+      `<div class="warn">The game on ${v.at.slice(0, 10)} was hosted by
+       <strong>${v.hosted_by}</strong>, but this series belongs at
+       <strong>${s.host}</strong>'s.</div>`).join("");
   const unknown = s.starters_unknown
     ? `<p class="note">${s.starters_unknown} game(s) in this series have no box score yet,
        so their starters aren't known — this check isn't complete.</p>` : "";
@@ -1789,7 +1793,10 @@ function renderSeason() {
     const yours = cur.wins[you] || 0, theirs = cur.wins[them] || 0;
     out.push(`<h2>${seriesLabel(cur)}${cur.postseason ? "" : ` · Season ${cur.season}`}</h2>`);
     out.push(`<p class="note">First to ${cur.target}. Ties and no contests are replayed —
-      they belong to the series but move neither side.</p>`);
+      they belong to the series but move neither side.${cur.host
+        ? ` Played at <strong>${cur.host === you ? "your" : cur.host + "'s"}</strong> house${
+            cur.postseason ? ", by advantage earned in the regular season" : ""}.`
+        : " Neither of you earned home field, so there is no designated host."}</p>`);
     // A series that has just opened has nothing to tabulate. An empty table
     // with headers reads as data that failed to load; a sentence does not.
     // Result before the scores, so both run columns land on the same side of
@@ -1819,14 +1826,22 @@ function renderSeason() {
     from running up a decided one.</p>`);
   const w = (ls && ls.series[you]) || 0, l = (ls && ls.series[them]) || 0;
   const done = w + l, len = SEASON.rules.season_length;
+  const hosted = (ls && ls.hosted) || {};
+  const breaches = (ls && ls.venue_breaches) || 0;
   out.push(`<div class="feats">
     <div class="feat"><div class="k">Series</div><div class="v">${w}–${l}</div>
       <div class="s">${done} of ${len} played</div></div>
     <div class="feat"><div class="k">Remaining</div><div class="v">${len - done}</div>
       <div class="s">then the World Series</div></div>
+    <div class="feat"><div class="k">Home dates</div><div class="v">${
+      hosted[you] || 0}–${hosted[them] || 0}</div>
+      <div class="s">${len / 2} each when the season ends</div></div>
     <div class="feat"><div class="k">Titles</div><div class="v">${
       SEASON.titles[you] || 0}–${SEASON.titles[them] || 0}</div>
       <div class="s">${you} — ${them}</div></div></div>`);
+  if (breaches) out.push(`<div class="warn" style="margin-top:12px">${breaches}
+    game(s) this season were played at the wrong house. Hosting alternates by series
+    so the home dates split ${len / 2}–${len / 2}.</div>`);
 
   // ---- the ladder, lit only once a tier is actually settled
   //
@@ -1905,6 +1920,19 @@ function renderRules() {
     Winning a series 3–0 and 3–2 count the same, so there is nothing to be gained from
     running up a series already decided.</p>
 
+    <h3>Home dates</h3>
+    <p><strong>Hosting alternates every series</strong>, so a season splits
+    ${R.season_length / 2}–${R.season_length / 2} and neither of you goes a whole season
+    without last at-bat. A series is played at one house start to finish;
+    ${R.first_host} hosts the first series of a season.</p>
+    <p class="note">This is the rule with the most catching up to do. Every one of the
+    ${DATA.games.length} games played before the league opened was hosted by ${P1} — ${P2}
+    has never had last at-bat, not once. The site checks who actually hosted each game and
+    says so when a series was played at the wrong house.</p>
+    <p>The postseason is the exception: home field there is <em>won</em>, not rostered, so
+    the World Series is played wherever the advantage ladder says. A season that finishes
+    level earns nobody home field, and no host is designated.</p>
+
     <h3>The World Series</h3>
     <p>Once ${R.season_length} series have closed, the next series <em>is</em> the World
     Series — best of ${ws}. There is nothing to declare and no bracket: with two teams,
@@ -1938,7 +1966,7 @@ function renderRules() {
     <p>None of this is on the honour system. Every rule leaves a trace in data the site
     already collects:</p>
     <ul>
-      <li><strong>Home field</strong> — which account the game was hosted under.</li>
+      <li><strong>Home dates and home field</strong> — which account the game was hosted under.</li>
       <li><strong>The rotation rule</strong> — the first pitching line of each game.</li>
       <li><strong>A card ban</strong> — the banned name simply never appears in a box score.</li>
       <li><strong>Series and season boundaries</strong> — the order the games were played in.</li>

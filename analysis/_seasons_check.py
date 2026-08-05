@@ -33,12 +33,18 @@ def check(name: str, cond: bool, detail: str = "") -> None:
     print(f"{'PASS' if cond else 'FAIL'}  {name}  {detail}")
 
 
-def build(results: list, starters: list | None = None) -> dict:
+def build(results: list, starters: list | None = None,
+          hosts: list | None = None) -> dict:
     """Derive a league from a list of results.
 
     `results` is one entry per game: "W" (I win), "L" (they win), "T" (tie) or
     "N" (no contest). `starters` is an optional parallel list of
-    (my starter, their starter) so the rotation rule can be exercised.
+    (my starter, their starter) so the rotation rule can be exercised, and
+    `hosts` an optional parallel list of usernames so the home-date rule can be.
+
+    Where `hosts` says nothing, the game is filed under whichever side the
+    schedule expects, so a test that is not about venues never trips the venue
+    check by accident.
 
     A tie is a regulation game the scores agree on; a no contest is one called
     before five innings. Both are produced the way the real ingester would, so
@@ -47,24 +53,37 @@ def build(results: list, starters: list | None = None) -> dict:
     scratch = Path(tempfile.mkdtemp(prefix="show-h2h-seasons-")) / "test.db"
     original = config.DB_PATH
     config.DB_PATH, config.DATA_DIR = scratch, scratch.parent
+
+    def write(conn, i, res, host):
+        """One game, filed under `host`. Runs and the decision follow the slot.
+
+        The winner column is 'home'/'away', not a username, so flipping which
+        account hosts has to flip the runs and the decision with it or the same
+        result silently becomes its opposite.
+        """
+        mine, theirs = (5, 2) if res == "W" else (2, 5) if res == "L" else (3, 3)
+        me_home = host == ME
+        conn.execute(
+            """INSERT OR REPLACE INTO games (game_uuid, natural_key, season_year,
+                   game_mode, played_at, display_date, innings, ruling,
+                   home_username, away_username, home_runs, away_runs,
+                   winner, is_h2h, has_box_score, imported_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,1,?)""",
+            (f"uuid-{i:04}", f"key-{i:04}", 26, "ARENA",
+             f"2026-09-{1 + i // 20:02}T{10 + i % 20:02}:00:00", "",
+             3 if res == "N" else 9,             # under five innings = no contest
+             "0" if res in ("W", "L") else "6",  # non-zero ruling = called early
+             ME if me_home else THEM, THEM if me_home else ME,
+             mine if me_home else theirs, theirs if me_home else mine,
+             None if res in ("T", "N") else
+             ("home" if (res == "W") == me_home else "away"),
+             db.now_iso()))
+
     try:
         conn = db.connect()
         db.init_db(conn)
         for i, res in enumerate(results):
-            mine, theirs = (5, 2) if res == "W" else (2, 5) if res == "L" else (3, 3)
-            conn.execute(
-                """INSERT INTO games (game_uuid, natural_key, season_year, game_mode,
-                       played_at, display_date, innings, ruling,
-                       home_username, away_username, home_runs, away_runs,
-                       winner, is_h2h, has_box_score, imported_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,1,?)""",
-                (f"uuid-{i:04}", f"key-{i:04}", 26, "ARENA",
-                 f"2026-09-{1 + i // 20:02}T{10 + i % 20:02}:00:00", "",
-                 3 if res == "N" else 9,          # under five innings = no contest
-                 "0" if res in ("W", "L") else "6",   # non-zero ruling = called early
-                 ME, THEM, mine, theirs,
-                 "home" if res == "W" else "away" if res == "L" else None,
-                 db.now_iso()))
+            write(conn, i, res, hosts[i] if hosts and i < len(hosts) else ME)
             if starters and i < len(starters):
                 for user, name in zip((ME, THEM), starters[i]):
                     conn.execute(
@@ -75,6 +94,20 @@ def build(results: list, starters: list | None = None) -> dict:
                         (f"uuid-{i:04}", "home" if user == ME else "away", user,
                          name, db.now_iso()))
         conn.commit()
+
+        # With no explicit schedule, file every game under whichever side the
+        # engine says should host it, then derive again. Working it out from the
+        # engine's own answer rather than recomputing the alternation here keeps
+        # the helper from re-implementing the rule it exists to test — and means
+        # a test about strikeouts never trips the venue check by accident.
+        if hosts is None:
+            placement = {g["uuid"]: s["host"]
+                         for s in seasons.derive()["series"] for g in s["games"]}
+            for i, res in enumerate(results):
+                host = placement.get(f"uuid-{i:04}")
+                if host and host != ME:
+                    write(conn, i, res, host)
+            conn.commit()
         conn.close()
         return seasons.derive()
     finally:
@@ -211,6 +244,44 @@ try:
     check("games without a box score are reported, not assumed clean",
           state["series"][0]["starters_unknown"] == 2,
           f"{state['series'][0]['starters_unknown']} unknown")
+
+    # ------------------------------------------------------- home dates
+    state = build(["W"] * 24)                 # 8 series, all filed at their host
+    got = [s["host"] for s in state["series"]]
+    check("hosting alternates every series",
+          all(a != b for a, b in zip(got, got[1:])), str(got[:4]))
+    check("the configured player hosts the first series",
+          got[0] == config.FIRST_HOST, f"{got[0]} vs {config.FIRST_HOST}")
+    check("a season splits its home dates evenly",
+          state["seasons"][0]["hosted"] == {ME: 4, THEM: 4},
+          str(state["seasons"][0]["hosted"]))
+    check("games filed at the scheduled house raise nothing",
+          state["seasons"][0]["venue_breaches"] == 0,
+          f"{state['seasons'][0]['venue_breaches']} breach(es)")
+
+    # Every game hosted by ME, which is exactly the habit the rule exists to
+    # break — half the series should now be flagged.
+    state = build(["W"] * 24, hosts=[ME] * 24)
+    check("a series played at the wrong house is flagged",
+          state["seasons"][0]["venue_breaches"] > 0,
+          f"{state['seasons'][0]['venue_breaches']} breach(es)")
+    check("the breach names who actually hosted",
+          all(v["hosted_by"] == ME
+              for s in state["series"] for v in s["wrong_venue"]))
+    check("only the series scheduled elsewhere are flagged",
+          [bool(s["wrong_venue"]) for s in state["series"]]
+          == [s["host"] != ME for s in state["series"]])
+
+    # The postseason does not alternate — home field there is won.
+    state = build(six_two + ["W"] * 4)
+    final = state["series"][-1]
+    check("the World Series is hosted by whoever earned home field",
+          final["postseason"] and final["host"] == ME, str(final["host"]))
+    tied_ws = build(tied + ["W"] * 4)["series"][-1]
+    check("a dead-heat season leaves the World Series with no host",
+          tied_ws["postseason"] and tied_ws["host"] is None, str(tied_ws["host"]))
+    check("and with no host, no venue can be wrong",
+          tied_ws["wrong_venue"] == [])
 finally:
     config.LEAGUE_START = LEAGUE_START
 
