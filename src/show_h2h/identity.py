@@ -112,11 +112,24 @@ def resolve(entry: dict, queried_username: str) -> dict:
         # sides, or vs CPU. Attribute home to them and let is_vs_cpu carry it.
         home_username, away_username = queried_username, away_name or "CPU"
     else:
-        # Neither slot was blanked — the queried user was not one of the two
-        # named players. Seen on co-op records that leak into a partner's
-        # history. Keep the row but never count it as head-to-head.
+        # Neither slot was blanked. That used to mean exactly one thing — the
+        # queried user was not one of the two named players, so the row leaked
+        # in from a partner's co-op history — and for the first 126 games it
+        # was true.
+        #
+        # It is not true any more. The API has started returning some rows with
+        # the queried user's own name spelled out where it used to write "CPU".
+        # On 2026-08-06 three head-to-head games arrived that way, were filed as
+        # third-party, and counted for nothing: no record, no series, no season.
+        # The same games fetched by id return the very same game_uuid as a
+        # blanked row would, so this is a reporting change, not a different game.
+        #
+        # Blanking is therefore no longer load-bearing. A row naming exactly the
+        # two accounts we crawl is a game between the two of them however it was
+        # reported; only a row naming somebody else is third-party.
         home_username, away_username = home_name, away_name
-        is_third_party = True
+        rivals = {config.MY_USERNAME.lower(), config.FRIEND_USERNAME.lower()}
+        is_third_party = {home_name.lower(), away_name.lower()} != rivals
 
     return {
         "home_username": home_username,
