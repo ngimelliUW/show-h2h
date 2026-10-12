@@ -1,0 +1,287 @@
+{
+ "_about": "Hand-written inputs for the site: card art per player (The Show card uuid), display names, and the stat line and quote featured beside each major award. The count does not depend on this file.",
+ "names": {
+  "Misiorowsk...": "Misiorowski"
+ },
+ "cards": {
+  "Misiorowski": "41ab256b8979df515eb9bb9edf333a4b",
+  "Trout": "a50d4c9b199dd572a203d3320eaa7108",
+  "Soto": "3fb03fc7a1df3ee614e5cacc6a1f4846",
+  "Messick": "a059cee2ba4ee2ca6a04f307a4f2d153",
+  "Melton": "a013e5e418f67b7a22a2d7770e8920c7",
+  "Duran": "674c98b78d7e34113e26e97c9dc9e242",
+  "McGee": "633c2afe697df47aefb0d612b3b4b98a",
+  "Keith": "f847838ae7bd1231832437222a894034",
+  "Lombard Jr.": "6cf0039d077f7a54b124292dd4938566",
+  "Clark": "2c4d5e61c49d2ee49d17efe5c16f802f",
+  "Crow-Armstrong": "721ae958f596c39efb71b1e0946efd9a",
+  "Keys": "dd440c2d7b4a820f5b7ee1b600964511",
+  "Gelof": "c8186b3dbbaa80f7b67764c07ab0cbd4",
+  "Baldwin": "bbc9ca2defc0b1d1a311edaa71c759dc",
+  "Greene": "f6d456e628a095ca75f864487cd5bd96",
+  "Kell": "1dd23b9d6e8a02b29122e28df1991817",
+  "Senga": "6f1799d12828f577bcf8635f482c9519"
+ },
+ "leaders": [
+  "Batting title",
+  "Home runs",
+  "RBI",
+  "Stolen bases",
+  "ERA title",
+  "Strikeouts",
+  "Wins",
+  "Saves"
+ ],
+ "majors": {
+  "mvp": {
+   "stats": [
+    [
+     "0.98",
+     "ERA, best in the league"
+    ],
+    [
+     "8 of 8",
+     "quality starts"
+    ],
+    [
+     "38",
+     "strikeouts, 2 walks"
+    ],
+    [
+     "64.1",
+     "innings, 5–2"
+    ]
+   ],
+   "quote": {
+    "text": "I have been told for years that a pitcher cannot be the MVP, usually by people who have never watched one decide a ballgame by himself.",
+    "by": "Dolores “Dee” Varnadoe",
+    "outlet": "The Mission Bay Ledger-Dispatch · San Diego chapter"
+   }
+  },
+  "cy_young": {
+   "stats": [
+    [
+     "0.98",
+     "ERA"
+    ],
+    [
+     "5–2",
+     "record"
+    ],
+    [
+     "38",
+     "strikeouts"
+    ],
+    [
+     "19.0",
+     "strikeouts per walk"
+    ]
+   ],
+   "quote": {
+    "text": "Wins, ERA, strikeouts - that is the old pitching Triple Crown, shared wins column and all, and it makes this the easiest box I ticked.",
+    "by": "Walt “Box Score” Brannigan",
+    "outlet": "The Birdtown Morning Ledger · Birds beat"
+   }
+  },
+  "rookie": {
+   "stats": [
+    [
+     "5–1",
+     "record"
+    ],
+    [
+     "1.43",
+     "ERA"
+    ],
+    [
+     "6 of 6",
+     "quality starts"
+    ],
+    [
+     "50.1",
+     "innings"
+    ]
+   ],
+   "quote": {
+    "text": "That is a rookie pitching like the fourth-best arm in the league because he was.",
+    "by": "Delmar “Radar” Quitman",
+    "outlet": "The Peachtree Ledger-Dispatch · Atlanta chapter"
+   }
+  },
+  "manager": {
+   "stats": [
+    [
+     "21–8",
+     "record"
+    ],
+    [
+     "7 of 8",
+     "series won"
+    ],
+    [
+     "+43",
+     "run difference"
+    ],
+    [
+     "12–2",
+     "at home"
+    ]
+   ],
+   "quote": {
+    "text": "TallThibaut48 gets second because there are two managers, and because he did win that first series, which I enjoyed enormously for about two days.",
+    "by": "Ambrose “Dutch” Pellwick",
+    "outlet": "The Worm County Ledger-Dispatch · Worms beat"
+   }
+  },
+  "relief_pitcher": {
+   "stats": [
+    [
+     "0.00",
+     "ERA"
+    ],
+    [
+     "3",
+     "saves, most in the league"
+    ],
+    [
+     "10.1",
+     "innings"
+    ],
+    [
+     "9",
+     "strikeouts"
+    ]
+   ],
+   "quote": {
+    "text": "Yes, there is a blown save on the ledger and one unearned run, and I grumbled about it for a full minute before remembering that 0.00 is 0.00.",
+    "by": "Delmar “Radar” Quitman",
+    "outlet": "The Peachtree Ledger-Dispatch · Atlanta chapter"
+   }
+  },
+  "reliever": {
+   "stats": [
+    [
+     "0.00",
+     "ERA"
+    ],
+    [
+     "3",
+     "saves, most in the league"
+    ],
+    [
+     "10.1",
+     "innings"
+    ],
+    [
+     "9",
+     "strikeouts"
+    ]
+   ],
+   "quote": {
+    "text": "Yes, there is a blown save on his card, and I grumbled about it, but any closer who says he never blew one is lying or never got the ball.",
+    "by": "Dutch “Lights Out” Kowalczyk",
+    "outlet": "Retired ninth-inning closer · relievers' panel"
+   }
+  },
+  "comeback": {
+   "stats": [
+    [
+     ".205 → .282",
+     "batting average"
+    ],
+    [
+     ".475 → .776",
+     "OPS"
+    ],
+    [
+     "11% → 3%",
+     "strikeout rate"
+    ],
+    [
+     "15",
+     "stolen bases"
+    ]
+   ],
+   "quote": {
+    "text": "Add 15 steals, 6 doubles, and just 2 strikeouts in 76 plate appearances, and you have a card that went from passenger to problem.",
+    "by": "Delmar “Radar” Quitman",
+    "outlet": "The Peachtree Ledger-Dispatch · Atlanta chapter"
+   }
+  },
+  "hank_aaron": {
+   "stats": [
+    [
+     ".318",
+     "batting title"
+    ],
+    [
+     ".849",
+     "OPS, best in the league"
+    ],
+    [
+     "35",
+     "hits, most in the league"
+    ],
+    [
+     "6",
+     "home runs"
+    ]
+   ],
+   "quote": {
+    "text": "I will grumble that he drew exactly one walk in 112 trips, but when you get on base that often I will forgive how you did it.",
+    "by": "Walt “Ball Four” Pendergast",
+    "outlet": "Hall of Fame leadoff man · expert panel"
+   }
+  },
+  "dh": {
+   "stats": [
+    [
+     "10",
+     "home runs, most in the league"
+    ],
+    [
+     "20",
+     "RBI, most in the league"
+    ],
+    [
+     ".551",
+     "slugging"
+    ],
+    [
+     "29",
+     "games at DH"
+    ]
+   ],
+   "quote": {
+    "text": "I have my private grumbles about a job where a man never needs a glove, but if the job exists, the fellow who hits 10 homers at it gets the award.",
+    "by": "Walt “Box Score” Brannigan",
+    "outlet": "The Birdtown Morning Ledger · Birds beat"
+   }
+  },
+  "platinum": {
+   "stats": [
+    [
+     "111",
+     "outs converted at second"
+    ],
+    [
+     "1",
+     "error all season"
+    ],
+    [
+     "29",
+     "games, every one at second"
+    ],
+    [
+     ".991",
+     "clean rate"
+    ]
+   ],
+   "quote": {
+    "text": "111 outs is the most anybody recorded, 82 of them on the ground, with a single error in 29 games at second; I looked for a reason to drop him and the dossier did not give me one.",
+    "by": "Dutch Okonkwo-Brandt",
+    "outlet": "Manager, Atlanta · coaching staff"
+   }
+  }
+ }
+}

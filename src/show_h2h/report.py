@@ -69,6 +69,18 @@ def _table(sql: str, game_index: dict[str, int], params: tuple = ()) -> dict:
     return {"cols": cols, "dicts": dicts, "data": data}
 
 
+AWARDS = Path(__file__).resolve().parents[2] / "awards"
+
+
+def _awards() -> list[dict]:
+    """Every season's counted awards, oldest first. See awards/README.md."""
+    out = []
+    for path in sorted(AWARDS.glob("season-*/awards.json"),
+                       key=lambda p: int(p.parent.name.split("-")[1])):
+        out.append(json.loads(path.read_text()))
+    return out
+
+
 def build() -> dict:
     me, them = config.MY_USERNAME, config.FRIEND_USERNAME
 
@@ -167,6 +179,10 @@ def build() -> dict:
         # a season is a few dozen games, not the thousands of per-game rows
         # the leaderboards re-aggregate, so it needs no compact encoding.
         "season": seasons.derive(),
+        # Regular-season awards, one entry per season that has been voted on.
+        # They are counted offline (awards/count.py) and committed, so the page
+        # only ever reads the result — nothing here can change who won.
+        "awards": _awards(),
     }
 
 

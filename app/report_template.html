@@ -314,6 +314,112 @@
   }
   .case-foot strong { color: var(--on-ground); font-weight: 600; }
 
+
+  /* ---------- awards ----------
+     Same dark cabinet as the trophy case, for the same reason: card art and
+     gold both need something to sit against. One award is open at a time, so
+     the page reads as a row of winners first and a count second. */
+  .aw-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .aw-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .aw-pills button, .aw-link {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .08em; font-size: 12px;
+    padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--muted); cursor: pointer;
+  }
+  .aw-pills button[aria-pressed="true"] { background: var(--ground); color: var(--amber); border-color: var(--ground); }
+  .aw-link:hover, .aw-pills button:hover { color: var(--text); }
+  .aw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 10px; }
+  .aw-tile {
+    display: flex; gap: 12px; align-items: center; text-align: left; cursor: pointer;
+    background: var(--ground); color: var(--on-ground); border-radius: 8px; padding: 10px 12px;
+    border: 1px solid color-mix(in srgb, var(--amber) 22%, transparent); font: inherit;
+  }
+  .aw-tile:hover { border-color: color-mix(in srgb, var(--amber) 60%, transparent); }
+  .aw-tile[aria-pressed="true"] { border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber); }
+  .aw-art {
+    flex: none; width: 54px; height: 76px; border-radius: 5px; overflow: hidden;
+    background: var(--ground-2); display: grid; place-items: center;
+    font-family: var(--display); font-size: 22px; color: var(--on-ground-muted);
+  }
+  .aw-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .aw-art.big { width: 150px; height: 212px; border-radius: 9px; font-size: 54px; }
+  .aw-art.mini { width: 46px; height: 65px; border-radius: 4px; font-size: 16px; }
+  .aw-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  /* On a phone ten full-width tiles push the count a long scroll away, so they
+     pack two across and the open award scrolls itself into view. */
+  @media (max-width: 640px) {
+    .aw-grid { grid-template-columns: 1fr 1fr; gap: 7px; }
+    .aw-tile { padding: 8px; gap: 8px; }
+    .aw-tile .aw-art { width: 38px; height: 54px; font-size: 15px; }
+    .aw-tile .aw-k { font-size: 9px; letter-spacing: .06em; }
+    .aw-tile b { font-size: 15px; }
+  }
+  .aw-k {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .1em;
+    font-size: 10.5px; color: var(--amber);
+  }
+  .aw-txt b {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .03em;
+    font-size: 19px; line-height: 1.1; overflow-wrap: anywhere;
+  }
+  .aw-club { font-size: 11.5px; color: var(--on-ground-muted); }
+  .aw-detail {
+    margin-top: 10px; background: var(--ground); color: var(--on-ground); border-radius: 8px;
+    background-image: radial-gradient(ellipse at 12% 0%, var(--ground-2), var(--ground) 70%);
+    border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
+    padding: 18px; display: grid; grid-template-columns: auto 1fr; gap: 20px;
+  }
+  @media (max-width: 640px) { .aw-detail { grid-template-columns: 1fr; } .aw-art.big { width: 110px; height: 155px; } }
+  .aw-detail h3 {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .03em;
+    font-size: 30px; line-height: 1.05; margin: 2px 0 4px;
+  }
+  .aw-sub { font-size: 12.5px; color: var(--on-ground-muted); margin: 0 0 12px; }
+  .aw-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .aw-stats div { border-top: 2px solid var(--amber); padding-top: 6px; }
+  .aw-stats b { font-family: var(--mono); font-size: 21px; display: block; line-height: 1.2; }
+  .aw-stats span { font-size: 11.5px; color: var(--on-ground-muted); }
+  .aw-votes { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  .aw-vote { display: grid; grid-template-columns: minmax(96px, 190px) 1fr 150px; gap: 10px; align-items: center; font-size: 12.5px; }
+  .aw-vote .trk { background: color-mix(in srgb, var(--on-ground) 12%, transparent); height: 13px; border-radius: 3px; overflow: hidden; display: block; }
+  .aw-vote .fill { display: block; height: 100%; border-radius: 3px; }
+  .aw-vote .val { font-family: var(--mono); font-size: 12px; text-align: right; white-space: nowrap; }
+  @media (max-width: 640px) { .aw-vote { grid-template-columns: 92px 1fr 122px; gap: 7px; } }
+  .aw-vote .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .aw-quote { border-left: 3px solid var(--amber); padding: 2px 0 2px 12px; margin: 0; font-size: 13.5px; font-style: italic; }
+  .aw-quote cite { display: block; font-style: normal; font-size: 11.5px; color: var(--on-ground-muted); margin-top: 5px; }
+  .aw-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .aw-mini {
+    display: flex; gap: 9px; align-items: center; background: var(--surface);
+    border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; min-width: 0;
+  }
+  .aw-mini .aw-art { background: var(--line-soft); color: var(--muted); }
+  .aw-mini .pos { font-family: var(--display); letter-spacing: .08em; font-size: 10.5px; color: var(--muted); }
+  .aw-mini b { font-size: 13.5px; display: block; overflow-wrap: anywhere; line-height: 1.2; }
+  .aw-mini small { font-size: 11px; color: var(--muted); }
+  .aw-teaser {
+    display: flex; gap: 6px 14px; align-items: center; flex-wrap: wrap; margin-top: 12px;
+    font-size: 13px; color: var(--muted);
+  }
+  details.ballot { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; margin-bottom: 6px; }
+  details.ballot summary { cursor: pointer; padding: 9px 12px; font-size: 13.5px; list-style-position: inside; }
+  details.ballot summary b { font-weight: 600; }
+  details.ballot summary span { color: var(--muted); font-size: 12px; }
+  details.ballot .notes { padding: 2px 14px 12px; max-width: 78ch; }
+  details.ballot h4 { font-family: var(--display); text-transform: uppercase; letter-spacing: .08em; font-size: 12px; margin: 14px 0 2px; }
+  details.ballot .picks { font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin: 0 0 5px; }
+  details.ballot p { font-size: 13.5px; margin: 0; }
+
+  /* Marks beside a player's name for awards he has won. Deliberately small and
+     quiet: they are there to be noticed on the second look, not the first. */
+  .marks { margin-left: 5px; white-space: nowrap; cursor: pointer; font-size: 10.5px; letter-spacing: 1px; vertical-align: 1px; }
+  .marks .m-major { color: var(--amber); }
+  .marks .m-gold { color: var(--amber); opacity: .8; }
+  .marks .m-silver { color: #9AA6B4; }
+  .marks .m-title { color: var(--muted); opacity: .75; }
+  p.legend { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+  p.legend span { margin-right: 12px; white-space: nowrap; }
+
   /* The ladder is a rules table that doubles as a live readout: the row you
      would earn today is lit, so the season standing has visible consequences
      without anyone doing the arithmetic. */
@@ -550,6 +656,10 @@
     <div id="season-body"></div>
   </section>
 
+  <section id="tab-awards" role="tabpanel" hidden>
+    <div id="awards-body"></div>
+  </section>
+
   <section id="tab-rules" role="tabpanel" hidden>
     <div id="rules-body" class="rules"></div>
   </section>
@@ -603,6 +713,7 @@
     </p>
     <div class="controls" id="ctl-bat"></div>
     <div class="card scroll"><table id="tbl-bat"></table></div>
+    <div id="legend-bat"></div>
     <h2>Top 12</h2>
     <div class="card"><div class="bars" id="bars-bat"></div></div>
   </section>
@@ -616,6 +727,7 @@
     </p>
     <div class="controls" id="ctl-pit"></div>
     <div class="card scroll"><table id="tbl-pit"></table></div>
+    <div id="legend-pit"></div>
     <h2>Top 12</h2>
     <div class="card"><div class="bars" id="bars-pit"></div></div>
   </section>
@@ -1555,7 +1667,8 @@ function renderBoardTable(kind) {
       return `<td class="owner"><span class="dot" style="background:${COLOR[r.u]}"></span>${r.u}</td>`;
     }
     const v = fmt ? fmt(r[f]) : (r[f] ?? "");
-    return `<td class="${cls || ""}${f === s.sort ? " hi" : ""}">${v}</td>`;
+    return `<td class="${cls || ""}${f === s.sort ? " hi" : ""}">${v}${
+      f === "p" ? marks(r.u, r.p) : ""}</td>`;
   }).join("")}</tr>`).join("")}</tbody>`;
   const tbl = $(kind === "bat" ? "tbl-bat" : "tbl-pit");
   tbl.innerHTML = head + body;
@@ -1566,6 +1679,7 @@ function renderBoardTable(kind) {
     renderBoardTable(kind);
   }));
   renderBars(kind, rows.slice(0, 12));
+  $(kind === "bat" ? "legend-bat" : "legend-pit").innerHTML = MARK_LEGEND;
 }
 
 function renderBars(kind, top) {
@@ -1580,7 +1694,7 @@ function renderBars(kind, top) {
     // Label carries the owner: both players field cards with the same surname
     // (two Fingers, two Durans), so a bare name would conflate them.
     return `<div class="bar-row">
-      <span class="bar-name" title="${r.p} (${r.u})"><span class="dot" style="background:${COLOR[r.u]}"></span>${r.p}</span>
+      <span class="bar-name" title="${r.p} (${r.u})"><span class="dot" style="background:${COLOR[r.u]}"></span>${r.p}${marks(r.u, r.p)}</span>
       <span class="bar-track"><span class="bar-fill" style="width:${Math.max(2, (v / max) * 100)}%;background:${COLOR[r.u]}"></span></span>
       <span class="bar-val">${fmt(r[s.sort])}</span>
     </div>`;
@@ -1788,7 +1902,7 @@ function rotationCard(s) {
     return `<div class="rot-row">
       <span class="strip-k" style="min-width:11ch;color:${COLOR[u]}">${u}</span>
       <span class="rot-arms">${arms.length
-        ? arms.map((a) => `<span class="arm${seen[a] > 1 ? " dup" : ""}">${a}</span>`).join("")
+        ? arms.map((a) => `<span class="arm${seen[a] > 1 ? " dup" : ""}">${a}${marks(u, a)}</span>`).join("")
         : '<span class="arm" style="opacity:.55">none yet</span>'}</span>
       <span class="note" style="margin:0">${arms.length} used${
         left ? `, up to ${left} more needed` : ""}${
@@ -1854,7 +1968,12 @@ function trophyCase() {
       <div class="shelf-edge"></div>
       <div class="case-foot">${foot}</div></div>`;
   }).join("");
-  return `<h2>Trophy case</h2><div class="cases">${cases}</div>`;
+  const last = AWARDS[AWARDS.length - 1];
+  const teaser = last ? `<div class="aw-teaser"><span>Season ${last.season} awards:</span>${
+    last.majors.slice(0, 3).map((m) => `<span><strong>${esc(m.title.replace(" Award", ""))}</strong> ${
+      esc(m.winner.player)}</span>`).join("")}
+    <button class="aw-link" data-awards>See all the awards</button></div>` : "";
+  return `<h2>Trophy case</h2><div class="cases">${cases}</div>${teaser}`;
 }
 
 function renderSeason() {
@@ -2042,13 +2161,211 @@ function renderRules() {
     start level at nothing apiece.</p>`;
 }
 
+/* ---------------- awards ----------------
+   Counted offline from the ballots and shipped as data; the page only shows
+   the result. One entry per season, oldest first. */
+const AWARDS = Array.isArray(DATA.awards) ? DATA.awards : [];
+let awardSeason = AWARDS.length - 1;     // newest by default
+let awardOpen = "mvp";
+let bookFilter = "all", bookFind = "";
+
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const CARD_ART = (id) => `https://cards.theshow.com/mlb26/${id}-baked-lg.webp`;
+
+// Art for a winner: the card when there is one, initials when there is not (a
+// manager) or when the image host does not answer.
+function art(who, size = "") {
+  const mono = esc((who.player || "?").replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase());
+  return `<span class="aw-art ${size}">${who.card
+    ? `<img src="${CARD_ART(who.card)}" alt="" loading="lazy" onerror="this.replaceWith('${mono}')">`
+    : mono}</span>`;
+}
+const clubTag = (who) =>
+  `<span class="dot" style="background:${COLOR[who.owner]}"></span>${esc(who.club)}`;
+
+// Every honour a card holds, across all seasons, keyed the way the stat tables
+// name him. Both players field same-named cards, so the owner is part of it.
+const HONOURS = {};
+AWARDS.forEach((a) => (a.badges || []).forEach((b) => {
+  const list = (HONOURS[`${b.owner}|${b.raw}`] ||= []);
+  b.honours.forEach(([tier, label]) => list.push({ tier, label, season: a.season }));
+}));
+const MARK = { major: "★", gold: "◆", silver: "●", title: "▴" };
+function marks(owner, name) {
+  const got = HONOURS[`${owner}|${name}`];
+  if (!got) return "";
+  const tip = got.map((h) => `Season ${h.season} ${h.label}`).join(" · ");
+  const glyphs = ["major", "gold", "silver", "title"].map((tier) => {
+    const n = got.filter((h) => h.tier === tier).length;
+    return n ? `<span class="m-${tier}">${MARK[tier].repeat(Math.min(n, 3))}</span>` : "";
+  }).join("");
+  return `<span class="marks" data-awards title="${esc(tip)}" aria-label="${esc(tip)}">${glyphs}</span>`;
+}
+const MARK_LEGEND = AWARDS.length ? `<p class="legend">
+  <span><b class="marks m-major" style="margin:0">★</b> major award</span>
+  <span><b class="marks m-gold" style="margin:0">◆</b> Gold Glove</span>
+  <span><b class="marks m-silver" style="margin:0;color:#9AA6B4">●</b> Silver Slugger</span>
+  <span><b class="marks m-title" style="margin:0">▴</b> led the league</span>
+  <span>Hover or tap a mark for the award.</span></p>` : "";
+
+function openAwards(season, key) {
+  if (season !== undefined) awardSeason = Math.max(0, AWARDS.findIndex((a) => a.season === season));
+  if (key) awardOpen = key;
+  nav = "awards"; renderTabs(); showTab(); renderBoard(); renderAwards();
+  window.scrollTo({ top: 0 });
+}
+// One listener for every mark on the page, however many times tables re-render.
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-awards]")) openAwards();
+});
+
+function awardDetail(m) {
+  const w = m.winner, top = m.votes[0].points || 1;
+  const unit = m.scale === "one vote each" ? "" : " pts";
+  return `<div class="aw-detail">
+    ${art(w, "big")}
+    <div>
+      <span class="aw-k">${esc(m.title)}</span>
+      <h3>${esc(w.player)}</h3>
+      <p class="aw-sub">${clubTag(w)} · ${esc(m.line)} · voted by ${esc(m.body)}</p>
+      ${m.stats ? `<div class="aw-stats">${m.stats.map(([v, k]) =>
+        `<div><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join("")}</div>` : ""}
+      <div class="aw-votes">${m.votes.slice(0, 6).map((v) => `<div class="aw-vote">
+        <span class="nm">${clubTag(v).replace(esc(v.club), esc(v.player))}</span>
+        <span class="trk"><span class="fill" style="width:${Math.max(2, 100 * v.points / top)}%;background:${COLOR[v.owner]}"></span></span>
+        <span class="val">${v.points}${unit}${v.firsts && unit ? ` · ${v.firsts} first${v.firsts === 1 ? "" : "s"}` : ""}</span>
+      </div>`).join("")}</div>
+      ${m.quote ? `<blockquote class="aw-quote">“${esc(m.quote.text)}”
+        <cite>${esc(m.quote.by)} · ${esc(m.quote.outlet)}</cite></blockquote>` : ""}
+    </div></div>`;
+}
+
+function renderAwards() {
+  const el = $("awards-body");
+  if (!AWARDS.length) {
+    el.innerHTML = `<div class="empty" style="margin-top:28px"><div class="big">No awards yet</div>
+      <p class="note" style="margin:0 auto">Awards are voted once a regular season is complete.</p></div>`;
+    return;
+  }
+  const A = AWARDS[awardSeason] || AWARDS[AWARDS.length - 1];
+  const E = A.electorate, total = E.writers + E.staffs + E.hof + E.relievers;
+  const open = A.majors.find((m) => m.key === awardOpen) || A.majors[0];
+  const out = [];
+
+  out.push(`<div class="aw-head"><h2>Season ${A.season} awards</h2>
+    ${AWARDS.length > 1 ? `<div class="aw-pills" role="group" aria-label="Choose a season">${AWARDS.map((a, i) =>
+      `<button data-season="${i}" aria-pressed="${i === awardSeason}">Season ${a.season}</button>`).join("")}</div>` : ""}</div>`);
+  out.push(`<p class="note">Regular season only — ${A.games} games, ${A.span[0]} to ${A.span[1]} —
+    because real ballots are due before the postseason. Decided by <strong>${total} secret ballots</strong>:
+    ${E.writers} writers, ${E.staffs} coaching staffs, ${E.hof} Hall of Famers and ${E.relievers} retired
+    relievers. Pick an award to see the count.</p>`);
+
+  out.push(`<div class="aw-grid">${A.majors.map((m) => `
+    <button class="aw-tile" data-award="${m.key}" aria-pressed="${m.key === open.key}">
+      ${art(m.winner)}
+      <span class="aw-txt"><span class="aw-k">${esc(m.title)}</span>
+        <b>${esc(m.winner.player)}</b>
+        <span class="aw-club">${clubTag(m.winner)}</span></span>
+    </button>`).join("")}</div>`);
+  out.push(awardDetail(open));
+
+  const mini = (x, extra) => `<div class="aw-mini">${art(x, "mini")}
+    <div style="min-width:0"><span class="pos">${esc(x.pos)}</span><b>${esc(x.player)}</b>
+    <small>${clubTag(x)}${extra ? ` · ${extra}` : ""}</small></div></div>`;
+  out.push(`<h2>Silver Sluggers</h2>
+    <p class="note">The best bat at each position, voted by the coaching staffs. A staff may not
+    vote for its own players.</p>
+    <div class="aw-strip">${A.silver.map((s) => mini(s, `${s.points}/${s.of}`)).join("")}</div>`);
+  out.push(`<h2>Gold Gloves</h2>
+    <p class="note">The best glove at each position: three-quarters the coaches' vote, one quarter a
+    fielding index rebuilt from the play-by-play (the game publishes no defensive numbers, so this is
+    a rough one). Both clubs can own the same card, which is why a name can win for either side.</p>
+    <div class="aw-strip">${A.gold.map((g) => mini(g, `${g.points}/${g.of}`)).join("")}</div>`);
+
+  const team = (name, rows) => `<div class="card"><div class="card-head">${name}</div>
+    <div class="scroll"><table><tbody>${rows.map((r) => `<tr>
+      <td style="width:54px">${esc(r.pos)}</td><td class="name">${esc(r.player)}</td>
+      <td class="owner">${clubTag(r)}</td></tr>`).join("")}</tbody></table></div></div>`;
+  out.push(`<h2>All-League teams</h2>
+    <p class="note">The full-season answer to an All-Star team, picked by the Hall of Fame panel.</p>
+    <div class="grid2">${team("First Team", A.all_league.first)}${team("Second Team", A.all_league.second)}</div>`);
+
+  out.push(`<h2>Stat titles</h2>
+    <p class="note">Nobody votes on these. Rate titles use the real playing-time minimums scaled to
+    ${A.games} games.</p>
+    <div class="feats">${A.leaders.map((x) => `<div class="feat"><div class="k">${esc(x.label)}</div>
+      <div class="v">${esc(x.value)}</div>
+      <div class="s">${x.who.map((w) => `${clubTag(w).replace(esc(w.club), esc(w.player))}`).join(", ")}</div>
+    </div>`).join("")}</div>`);
+
+  // ---- every winner of every award, season by season
+  const titles = [];
+  AWARDS.forEach((a) => a.majors.forEach((m) => { if (!titles.includes(m.title)) titles.push(m.title); }));
+  out.push(`<h2>Past winners</h2>
+    <div class="card scroll"><table><thead><tr><th>Award</th>${AWARDS.map((a) =>
+      `<th style="text-align:left">Season ${a.season}</th>`).join("")}</tr></thead><tbody>${titles.map((t) =>
+      `<tr><td class="name">${esc(t)}</td>${AWARDS.map((a) => {
+        const m = a.majors.find((x) => x.title === t);
+        return `<td class="name" style="text-align:left">${m
+          ? `<a href="#" data-jump="${a.season}|${m.key}" style="color:inherit;text-decoration:none">${
+              clubTag(m.winner).replace(esc(m.winner.club), esc(m.winner.player))}</a>` : "—"}</td>`;
+      }).join("")}</tr>`).join("")}</tbody></table></div>`);
+
+  // ---- the ballot book
+  const kinds = [["all", "Everyone"], ["writer", "Writers"], ["staff", "Coaching staffs"],
+                 ["hof", "Hall of Fame panel"], ["relievers", "Relievers' panel"]];
+  const q = bookFind.trim().toLowerCase();
+  const shown = A.book.filter((v) => (bookFilter === "all" || v.body === bookFilter)
+    && (!q || JSON.stringify(v).toLowerCase().includes(q)));
+  out.push(`<h2>The ballot book</h2>
+    <p class="note">Every voter signed their ballot and explained each pick. Each one is an AI given
+    the same stat sheet and a different voting philosophy; the names and newspapers are their own
+    inventions, and the notes were written after the ballots were cast.</p>
+    <div class="controls">
+      <div class="field"><label>Voters</label><select id="book-kind">${kinds.map(([k, l]) =>
+        `<option value="${k}" ${k === bookFilter ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+      <div class="field"><label>Find a name or a player</label>
+        <input type="text" id="book-find" value="${esc(bookFind)}" placeholder="Soto, Atlanta, contrarian…"></div>
+    </div>
+    <p class="note" style="margin-top:0">${shown.length} of ${A.book.length} ballots.</p>
+    <div id="book-list">${shown.map((v) => `<details class="ballot">
+      <summary><b>${esc(v.byline)}</b> <span>— ${esc(v.outlet)} · ${esc(v.where)} · ${esc(v.lens)}</span></summary>
+      <div class="notes">${v.notes.map((n) => `<h4>${esc(n.title)}</h4>
+        ${n.picks ? `<p class="picks">${esc(n.picks)}</p>` : ""}<p>${esc(n.text)}</p>`).join("")}</div>
+    </details>`).join("")}</div>`);
+
+  el.innerHTML = out.join("");
+  el.querySelectorAll("[data-award]").forEach((b) => b.addEventListener("click", () => {
+    awardOpen = b.dataset.award; renderAwards();
+    $("awards-body").querySelector(".aw-detail")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }));
+  el.querySelectorAll("[data-season]").forEach((b) => b.addEventListener("click", () => {
+    awardSeason = Number(b.dataset.season); renderAwards();
+  }));
+  el.querySelectorAll("[data-jump]").forEach((a) => a.addEventListener("click", (e) => {
+    e.preventDefault();
+    const [s, k] = a.dataset.jump.split("|");
+    openAwards(Number(s), k);
+  }));
+  $("book-kind").addEventListener("change", (e) => { bookFilter = e.target.value; renderAwards(); });
+  // Re-rendering on every keystroke would drop focus from the box being typed
+  // in, so the search redraws only the list beneath it.
+  $("book-find").addEventListener("input", (e) => {
+    bookFind = e.target.value;
+    const pos = e.target.selectionStart;
+    renderAwards();
+    const box = $("book-find"); box.focus(); box.setSelectionRange(pos, pos);
+  });
+}
+
 /* ---------------- tabs ----------------
    Two levels: the competition on top, the stat tables nested beneath it. The
    five stat sections are untouched — only what decides their visibility moved. */
 // Rules sits beside Season because it explains it — they are one subject. Stats
 // goes last: it is the deepest section and the one with its own row of tabs, so
 // putting it between the two would split a pair and bury the second half.
-const NAV = [["season", "Season"], ["rules", "Rules"], ["stats", "Stats"]];
+const NAV = [["season", "Season"], ["awards", "Awards"], ["rules", "Rules"], ["stats", "Stats"]];
 const TABS = [["overview", "Overview"], ["matchup", "Matchup"], ["hitters", "Hitters"],
               ["pitchers", "Pitchers"], ["games", "Games"]];
 
@@ -2069,6 +2386,7 @@ function renderTabs() {
 
 function showTab() {
   $("tab-season").hidden = nav !== "season";
+  $("tab-awards").hidden = nav !== "awards";
   $("tab-rules").hidden = nav !== "rules";
   TABS.forEach(([id]) => { $("tab-" + id).hidden = nav !== "stats" || id !== tab; });
 }
@@ -2082,7 +2400,7 @@ function renderAll() {
     feats: renderFeats, never: renderNever, chase: renderChase, form: renderForm, matchup: renderMatchup,
     hitters: () => { controls("bat"); renderBoardTable("bat"); },
     pitchers: () => { controls("pit"); renderBoardTable("pit"); },
-    games: renderGames, season: renderSeason, rules: renderRules,
+    games: renderGames, season: renderSeason, awards: renderAwards, rules: renderRules,
     tabs: () => { renderTabs(); showTab(); },
   };
   for (const [name, fn] of Object.entries(sections)) {

@@ -22,7 +22,7 @@ from playwright.sync_api import sync_playwright
 URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8502"
 # Two levels. The stat tables are nested under STATS, so nothing in the second
 # row exists in the DOM as a visible control until the first row selects it.
-NAV = ["season", "rules", "stats"]
+NAV = ["season", "awards", "rules", "stats"]
 TABS = ["overview", "matchup", "hitters", "pitchers", "games"]
 
 ok = True
