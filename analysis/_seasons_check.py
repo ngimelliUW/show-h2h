@@ -42,9 +42,9 @@ def build(results: list, starters: list | None = None,
     (my starter, their starter) so the rotation rule can be exercised, and
     `hosts` an optional parallel list of usernames so the home-date rule can be.
 
-    Where `hosts` says nothing, the game is filed under whichever side the
-    schedule expects, so a test that is not about venues never trips the venue
-    check by accident.
+    Where `hosts` says nothing, series are filed at alternating houses (and a
+    World Series at its earned host), so a test that is not about venues never
+    trips the venue check by accident.
 
     A tie is a regulation game the scores agree on; a no contest is one called
     before five innings. Both are produced the way the real ingester would, so
@@ -95,18 +95,17 @@ def build(results: list, starters: list | None = None,
                          name, db.now_iso()))
         conn.commit()
 
-        # With no explicit schedule, file every game under whichever side the
-        # engine says should host it, then derive again. Working it out from the
-        # engine's own answer rather than recomputing the alternation here keeps
-        # the helper from re-implementing the rule it exists to test — and means
-        # a test about strikeouts never trips the venue check by accident.
+        # With no explicit hosts, give the season a legal split: regular-season
+        # series alternate houses and the World Series goes to its earned host.
+        # Series boundaries do not depend on who hosted, so the first derive is
+        # only read for which games belong together.
         if hosts is None:
-            placement = {g["uuid"]: s["host"]
-                         for s in seasons.derive()["series"] for g in s["games"]}
-            for i, res in enumerate(results):
-                host = placement.get(f"uuid-{i:04}")
-                if host and host != ME:
-                    write(conn, i, res, host)
+            for sr in seasons.derive()["series"]:
+                host = sr["host"] if sr["postseason"] else (THEM, ME)[sr["no"] % 2 == 0]
+                for g in sr["games"]:
+                    i = int(g["uuid"].split("-")[1])
+                    if host and host != ME:
+                        write(conn, i, results[i], host)
             conn.commit()
         conn.close()
         return seasons.derive()
@@ -246,33 +245,53 @@ try:
           f"{state['series'][0]['starters_unknown']} unknown")
 
     # ------------------------------------------------------- home dates
-    state = build(["W"] * 24)                 # 8 series, all filed at their host
-    got = [s["host"] for s in state["series"]]
-    check("hosting alternates every series",
-          all(a != b for a, b in zip(got, got[1:])), str(got[:4]))
-    check("the configured player hosts the first series",
-          got[0] == config.FIRST_HOST, f"{got[0]} vs {config.FIRST_HOST}")
+    def by_series(houses: list) -> list:
+        """One host per three-game sweep."""
+        return [h for h in houses for _ in range(3)]
+
+    # Deliberately not alternating: the only rule is the split.
+    order = [ME, ME, THEM, THEM, THEM, ME, THEM, ME]
+    state = build(["W"] * 24, hosts=by_series(order))
+    check("a series belongs to whoever hosted it",
+          [s["host"] for s in state["series"]] == order,
+          str([s["host"] for s in state["series"]]))
     check("a season splits its home dates evenly",
           state["seasons"][0]["hosted"] == {ME: 4, THEM: 4},
           str(state["seasons"][0]["hosted"]))
-    check("games filed at the scheduled house raise nothing",
-          state["seasons"][0]["venue_breaches"] == 0,
-          f"{state['seasons'][0]['venue_breaches']} breach(es)")
+    check("an even split in any order raises nothing",
+          state["seasons"][0]["over_quota"] == 0
+          and state["seasons"][0]["venue_breaches"] == 0
+          and not any(s["over_quota"] for s in state["series"]))
 
     # Every game hosted by ME, which is exactly the habit the rule exists to
-    # break — half the series should now be flagged.
+    # break — the first four are his to host, the last four are not.
     state = build(["W"] * 24, hosts=[ME] * 24)
-    check("a series played at the wrong house is flagged",
-          state["seasons"][0]["venue_breaches"] > 0,
-          f"{state['seasons'][0]['venue_breaches']} breach(es)")
-    check("the breach names who actually hosted",
-          all(v["hosted_by"] == ME
-              for s in state["series"] for v in s["wrong_venue"]))
-    check("only the series scheduled elsewhere are flagged",
-          [bool(s["wrong_venue"]) for s in state["series"]]
-          == [s["host"] != ME for s in state["series"]])
+    check("hosting past half the season is flagged",
+          [s["over_quota"] for s in state["series"]] == [False] * 4 + [True] * 4,
+          str([s["over_quota"] for s in state["series"]]))
+    check("the season counts the series over quota",
+          state["seasons"][0]["over_quota"] == 4,
+          str(state["seasons"][0]["over_quota"]))
 
-    # The postseason does not alternate — home field there is won.
+    # Mid-season: four hosted by ME, so everything left is the other house.
+    state = build(["W"] * 12, hosts=[ME] * 12)
+    check("with one side's home series spent, the next host is forced",
+          state["current"]["host"] == THEM and not state["current"]["over_quota"],
+          str(state["current"]["host"]))
+    check("the season reports the home series left",
+          state["live_season"]["home_left"] == {ME: 0, THEM: 4},
+          str(state["live_season"]["home_left"]))
+    state = build(["W"] * 3, hosts=[ME] * 3)
+    check("otherwise an unplayed series has no host yet",
+          state["current"]["host"] is None, str(state["current"]["host"]))
+
+    # One house per series still holds.
+    state = build(["W"] * 3, hosts=[ME, THEM, ME])
+    check("a series split across two houses is flagged",
+          [v["hosted_by"] for v in state["series"][0]["wrong_venue"]] == [THEM],
+          str(state["series"][0]["wrong_venue"]))
+
+    # The postseason is not a free choice — home field there is won.
     state = build(six_two + ["W"] * 4)
     final = state["series"][-1]
     check("the World Series is hosted by whoever earned home field",

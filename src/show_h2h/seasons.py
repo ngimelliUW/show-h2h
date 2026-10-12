@@ -148,27 +148,45 @@ def _audit(series: dict, starters: dict) -> None:
             })
 
 
-def _host(series_no: int, postseason: bool, advantage: dict[str, tuple]) -> str | None:
-    """Whose house this series is played at.
+def _home_quota() -> int:
+    """How many regular-season series each player may host in one season."""
+    return (config.SEASON_LENGTH + 1) // 2
 
-    In the regular season hosting simply alternates, so an even-length season
-    splits the home dates evenly and neither player spends a whole season
-    without last at-bat — which is exactly what happened across all 126 games
-    before the league opened.
 
-    The postseason does not alternate: home field there is the prize won by the
-    season, so it belongs to whoever earned it. A dead-heat season earns nobody
-    home field, and returns None rather than inventing a host.
+def _venue(series: dict, hosted: dict[str, int]) -> None:
+    """Settle where a series was played, and whether that was allowed.
+
+    The regular season has no schedule. A series belongs to whichever house its
+    first game was played at, and the only obligation is the season's split:
+    each player hosts half the series, in any order they like. `hosted` is what
+    each has hosted in this season *before* this series, so a series goes over
+    quota only when its host has already had every home series he is owed.
+
+    A series with nothing played yet has no host — unless one player has used
+    all of his, in which case the rest of the season can only go one way and
+    the page may as well say so.
+
+    The postseason is not up for choosing: home field there is the prize won by
+    the season, so it belongs to whoever earned it. A dead-heat season earns
+    nobody home field, and leaves the host as None rather than inventing one.
     """
-    if postseason:
-        return next((u for u, prizes in advantage.items() if "home" in prizes), None)
-    first = config.USERNAMES.index(config.FIRST_HOST) if config.FIRST_HOST in config.USERNAMES else 0
-    return config.USERNAMES[(first + series_no - 1) % len(config.USERNAMES)]
+    quota = _home_quota()
+    series["over_quota"] = False
+    if series["postseason"]:
+        host = next((u for u, prizes in series["advantage"].items()
+                     if "home" in prizes), None)
+    else:
+        host = next((g["home"] for g in series["games"] if g["home"]), None)
+        if host is None:
+            spent = [u for u in config.USERNAMES if hosted.get(u, 0) >= quota]
+            if len(spent) == 1:
+                host = next(u for u in config.USERNAMES if u not in spent)
+        elif hosted.get(host, 0) >= quota:
+            series["over_quota"] = True
 
-
-def _venue(series: dict) -> None:
-    """Games played somewhere other than the series' designated host."""
-    host = series["host"]
+    series["host"] = host
+    # Still one house per series: a game played somewhere else is a series split
+    # across two living rooms, which the even split cannot account for.
     series["wrong_venue"] = [] if host is None else [
         {"at": g["at"], "hosted_by": g["home"]}
         for g in series["games"] if g["home"] and g["home"] != host
@@ -182,7 +200,9 @@ def _new_series(season_no: int, series_no: int, postseason: bool,
         "season": season_no,
         "no": series_no,
         "postseason": postseason,
-        "host": _host(series_no, postseason, advantage),
+        # Settled by _venue once the games are known: in the regular season the
+        # host is wherever the series was actually played.
+        "host": None,
         "target": target,
         # A best-of-five is at most five decisive games; ties and no contests
         # are replayed and can push the actual game count past it.
@@ -256,9 +276,16 @@ def derive() -> dict:
                 })
         open_series = None
 
-    for s in series:
+    def settle(s: dict) -> None:
         _audit(s, starters)
-        _venue(s)
+        before = Counter(x["host"] for x in series
+                         if x is not s and x["season"] == s["season"]
+                         and not x["postseason"] and x.get("host"))
+        _venue(s, before)
+
+    # In playing order, so each series sees the home dates already spent.
+    for s in series:
+        settle(s)
 
     # Always describe what comes next, even before a single pitch: the launch
     # state of this feature is an empty Season 1, and a page with nothing to
@@ -266,8 +293,7 @@ def derive() -> dict:
     current = open_series or _new_series(
         season_no, closed + 1, closed >= config.SEASON_LENGTH, advantage)
     if current is not open_series:
-        _audit(current, starters)
-        _venue(current)
+        settle(current)
 
     live_season = next((s for s in seasons if s["no"] == season_no), None)
     if live_season is None:
@@ -284,14 +310,16 @@ def derive() -> dict:
             "ended": None,
         }
 
-    # How the home dates have actually fallen, per season. The rule is that they
-    # split evenly, so this is the number the rule is checked against — counted
-    # from series already played rather than from the schedule, because a series
-    # played at the wrong house should show up here as the imbalance it is.
+    # How the home dates have fallen, per season. The rule is only that they
+    # split evenly by the end, so what matters mid-season is how many each side
+    # has left — and whether anybody has already taken more than his half.
+    quota = _home_quota()
     for s in seasons + ([live_season] if live_season not in seasons else []):
         played = [x for x in series if x["season"] == s["no"] and not x["postseason"]]
         s["hosted"] = {u: sum(1 for x in played if x["host"] == u)
                        for u in config.USERNAMES}
+        s["home_left"] = {u: max(0, quota - n) for u, n in s["hosted"].items()}
+        s["over_quota"] = sum(1 for x in played if x["over_quota"])
         s["venue_breaches"] = sum(len(x["wrong_venue"]) for x in played)
 
     return {
@@ -302,7 +330,7 @@ def derive() -> dict:
             "world_series_wins": config.WORLD_SERIES_WINS,
             "ladder": {str(k): list(v) for k, v in config.ADVANTAGE_LADDER.items()},
             "advantage_text": dict(config.ADVANTAGE_TEXT),
-            "first_host": config.FIRST_HOST,
+            "home_quota": quota,
         },
         "players": [me, them],
         "titles": titles,
@@ -331,11 +359,14 @@ def main() -> int:
     print(f"{label} (best of {cur['max_games']}): "
           + " / ".join(f"{u} {n}" for u, n in cur["wins"].items())
           + f" — {len(cur['games'])} game(s) played"
-          + (f", at {cur['host']}'s" if cur["host"] else ", no host"))
+          + (f", at {cur['host']}'s" if cur["host"] else ", host open"))
     for user, names in cur["starters"].items():
         print(f"    {user}: {', '.join(names) or 'no starters yet'}")
     for v in cur["violations"]:
         print(f"  !! rotation rule: {v['owner']} started {', '.join(v['repeated'])} twice")
+    if cur["over_quota"]:
+        print(f"  !! home dates: {cur['host']} has already hosted his "
+              f"{_home_quota()} series this season")
     for v in cur["wrong_venue"]:
         print(f"  !! venue: {v['at'][:10]} was hosted by {v['hosted_by']}, not {cur['host']}")
     return 0

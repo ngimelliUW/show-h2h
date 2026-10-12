@@ -267,20 +267,52 @@
     padding: 3px 10px; border-radius: 999px; display: inline-block;
   }
 
-  .trophies { display: flex; gap: 18px; flex-wrap: wrap; }
-  .trophy {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
-    padding: 15px 18px; flex: 1 1 220px; display: flex; align-items: center; gap: 14px;
+  /* ---------- trophy case ----------
+     One cabinet per player, dark in both themes: polished gold needs something
+     to shine against, and on a white card the trophy washes out to beige. An
+     empty cabinet shows the same trophy as an unlit outline — a space waiting
+     to be filled, not a zero. */
+  .cases { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .cases { grid-template-columns: 1fr; } }
+  .case {
+    background: var(--ground);
+    background-image: radial-gradient(ellipse at 50% 0%, var(--ground-2), var(--ground) 70%);
+    color: var(--on-ground); border-radius: 8px; overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
+    display: flex; flex-direction: column;
   }
-  .trophy .count {
-    font-family: var(--mono); font-variant-numeric: tabular-nums;
-    font-size: 40px; font-weight: 700; line-height: 1;
+  .case-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+    padding: 13px 16px 0;
   }
-  .trophy .who { display: flex; flex-direction: column; gap: 2px; }
-  .trophy .who b { font-size: 14px; overflow-wrap: anywhere; }
-  .trophy .who span { font-size: 11.5px; color: var(--muted); }
-  .pennants { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
-  .pennant { font-size: 15px; line-height: 1; }
+  .case-head b {
+    font-family: var(--display); text-transform: uppercase; letter-spacing: .05em;
+    font-size: 19px; overflow-wrap: anywhere;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .case-head span {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--on-ground-muted); white-space: nowrap;
+  }
+  .case-head span.has { color: var(--amber); }
+  .shelf {
+    display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end;
+    gap: 6px 14px; padding: 6px 12px 0; flex: 1;
+  }
+  .ws-trophy { display: flex; flex-direction: column; align-items: center; width: min(240px, 62vw); }
+  .ws-trophy svg { width: 100%; height: auto; display: block; }
+  .ws-trophy.ghost { width: min(170px, 44vw); }
+  .ws-trophy.ghost svg { filter: grayscale(1) brightness(.55); opacity: .22; }
+  .shelf-edge {
+    height: 7px; margin-top: -3px;
+    background: linear-gradient(#3A4C6E, #16223A 55%, #070C15);
+    border-top: 1px solid color-mix(in srgb, var(--amber) 55%, transparent);
+  }
+  .case-foot {
+    padding: 9px 16px 13px; text-align: center;
+    font-family: var(--mono); font-size: 11.5px; color: var(--on-ground-muted);
+  }
+  .case-foot strong { color: var(--on-ground); font-weight: 600; }
 
   /* The ladder is a rules table that doubles as a live readout: the row you
      would earn today is lit, so the season standing has visible consequences
@@ -637,6 +669,11 @@
   <footer id="foot"></footer>
 </div>
 
+<!-- Gradients and filters for the trophies, declared once and shared by every
+     one drawn. Zero-sized rather than display:none — a hidden SVG's gradients
+     do not resolve in every browser. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="wsGold" x1="0" y1="0" x2="1" y2="0" color-interpolation="linearRGB"><stop offset="0" stop-color="#7C580F"/><stop offset=".14" stop-color="#C9962E"/><stop offset=".32" stop-color="#FDEEB0"/><stop offset=".42" stop-color="#FFFEF6"/><stop offset=".56" stop-color="#F3D06A"/><stop offset=".76" stop-color="#C9962E"/><stop offset=".92" stop-color="#8A6412"/><stop offset="1" stop-color="#B98A26"/></linearGradient><linearGradient id="wsGoldV" x1=".1" y1="0" x2=".4" y2="1" color-interpolation="linearRGB"><stop offset="0" stop-color="#FFF8DC"/><stop offset=".32" stop-color="#F6D273"/><stop offset=".66" stop-color="#CE9A22"/><stop offset="1" stop-color="#8A6412"/></linearGradient><linearGradient id="wsSpire" x1="0" y1="1" x2="0" y2="0" color-interpolation="linearRGB"><stop offset="0" stop-color="#A87C1C"/><stop offset=".35" stop-color="#EAC258"/><stop offset=".7" stop-color="#FDEEB0"/><stop offset="1" stop-color="#FFFEF6"/></linearGradient><linearGradient id="wsPlinth" x1="0" y1="0" x2="1" y2="0" color-interpolation="linearRGB"><stop offset="0" stop-color="#070C15"/><stop offset=".22" stop-color="#1B2A45"/><stop offset=".4" stop-color="#2C416A"/><stop offset=".62" stop-color="#16223A"/><stop offset="1" stop-color="#060A12"/></linearGradient><radialGradient id="wsBall" cx=".5" cy=".5" r=".5" fx=".34" fy=".28" color-interpolation="linearRGB"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".55" stop-color="#F3EFE4"/><stop offset=".86" stop-color="#D5CDBB"/><stop offset="1" stop-color="#9E957F"/></radialGradient><radialGradient id="wsGlow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#F7D877" stop-opacity=".42"/><stop offset=".55" stop-color="#F7D877" stop-opacity=".1"/><stop offset="1" stop-color="#F7D877" stop-opacity="0"/></radialGradient><radialGradient id="wsFloor" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#0B1220" stop-opacity=".5"/><stop offset="1" stop-color="#0B1220" stop-opacity="0"/></radialGradient><filter id="wsSculpt" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="linearRGB"><feGaussianBlur in="SourceAlpha" stdDeviation="1.1" result="bump"/><feSpecularLighting in="bump" surfaceScale="3" specularConstant=".85" specularExponent="22" lighting-color="#fff" result="spec"><feDistantLight azimuth="228" elevation="58"/></feSpecularLighting><feComposite in="spec" in2="SourceAlpha" operator="in" result="sc"/><feComponentTransfer in="sc" result="ss"><feFuncA type="linear" slope=".8"/></feComponentTransfer><feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="ss"/></feMerge></filter><clipPath id="wsBallClip"><circle cx="120" cy="156" r="37"/></clipPath><linearGradient id="wsBowlIn" x1="0" y1="0" x2="1" y2="0" color-interpolation="linearRGB"><stop offset="0" stop-color="#3D2B06"/><stop offset=".5" stop-color="#8A6412"/><stop offset="1" stop-color="#4A3608"/></linearGradient></defs></svg>
+
 <script>
 const DATA = /*__DATA__*/null;
 
@@ -680,7 +717,7 @@ const SEASON = Object.assign({
   start: "", titles: {}, seasons: [], series: [], current: null,
   live_season: null, pregame: true, games_counted: 0,
   rules: { series_wins: 3, season_length: 8, world_series_wins: 4,
-           ladder: {}, advantage_text: {} },
+           ladder: {}, advantage_text: {}, home_quota: 4 },
 }, DATA.season || {});
 
 const [P1, P2] = DATA.players;
@@ -1762,10 +1799,15 @@ function rotationCard(s) {
       v.repeated.join(", ")} more than once${
       v.allowance ? ` — more than the ${v.allowance} repeat this advantage allows` : ""
     }. The rotation rule says a pitcher starts once per series.</div>`).join("")
+    + (s.over_quota
+      ? `<div class="warn"><strong>${s.host}</strong> has already hosted ${
+          SEASON.rules.home_quota} series this season, so this one puts the home
+          dates out of balance.</div>` : "")
     + (s.wrong_venue || []).map((v) =>
       `<div class="warn">The game on ${v.at.slice(0, 10)} was hosted by
-       <strong>${v.hosted_by}</strong>, but this series belongs at
-       <strong>${s.host}</strong>'s.</div>`).join("");
+       <strong>${v.hosted_by}</strong>, but ${s.postseason
+         ? `home field in this series was earned by` : `this series opened at`}
+       <strong>${s.host}</strong>${s.postseason ? "" : "'s"}.</div>`).join("");
   const unknown = s.starters_unknown
     ? `<p class="note">${s.starters_unknown} game(s) in this series have no box score yet,
        so their starters aren't known — this check isn't complete.</p>` : "";
@@ -1773,10 +1815,54 @@ function rotationCard(s) {
       <div class="rot">${rows}</div></div>${warn}${unknown}`;
 }
 
+/* ---------------- the World Series trophy ----------------
+   Drawn once, struck per title: the pennants fly the champion's colour and the
+   plate carries the season. __FLAG__ and __L2__ are the only two things that
+   change between one trophy and the next. */
+const TROPHY_ART = "<ellipse cx=\"120\" cy=\"331\" rx=\"96\" ry=\"8\" fill=\"url(#wsFloor)\"/><circle cx=\"120\" cy=\"124\" r=\"118\" fill=\"url(#wsGlow)\"/><ellipse cx=\"120\" cy=\"193\" rx=\"47\" ry=\"9.5\" fill=\"url(#wsBowlIn)\"/><g filter=\"url(#wsSculpt)\"><path d=\"M117.8 206.6L24.4 125L25.6 123.6L122.2 201.4Z\" fill=\"url(#wsSpire)\"/><path d=\"M26.5 125.6L19.3 146.3L36.5 133.9Z\" style=\"fill:__FLAG__\" stroke=\"#0B1220\" stroke-opacity=\".28\" stroke-width=\".6\"/><path d=\"M26.5 125.6L19.3 146.3L31.5 129.8Z\" fill=\"#fff\" fill-opacity=\".2\"/><circle cx=\"25\" cy=\"124.3\" r=\"2.3\" fill=\"url(#wsGoldV)\"/><path d=\"M117.8 201.4L214.4 123.6L215.6 125L122.2 206.6Z\" fill=\"url(#wsSpire)\"/><path d=\"M213.5 125.6L220.7 146.3L203.5 133.9Z\" style=\"fill:__FLAG__\" stroke=\"#0B1220\" stroke-opacity=\".28\" stroke-width=\".6\"/><path d=\"M213.5 125.6L220.7 146.3L208.5 129.8Z\" fill=\"#fff\" fill-opacity=\".2\"/><circle cx=\"215\" cy=\"124.3\" r=\"2.3\" fill=\"url(#wsGoldV)\"/><path d=\"M117.4 206.2L31.6 100L32.9 98.8L122.6 201.8Z\" fill=\"url(#wsSpire)\"/><path d=\"M33.5 101L23.2 120.1L41.9 110.9Z\" style=\"fill:__FLAG__\" stroke=\"#0B1220\" stroke-opacity=\".28\" stroke-width=\".6\"/><path d=\"M33.5 101L23.2 120.1L37.7 105.9Z\" fill=\"#fff\" fill-opacity=\".2\"/><circle cx=\"32.2\" cy=\"99.4\" r=\"2.3\" fill=\"url(#wsGoldV)\"/><path d=\"M117.4 201.8L207.1 98.8L208.4 100L122.6 206.2Z\" fill=\"url(#wsSpire)\"/><path d=\"M206.5 101L216.8 120.1L198.1 110.9Z\" style=\"fill:__FLAG__\" stroke=\"#0B1220\" stroke-opacity=\".28\" stroke-width=\".6\"/><path d=\"M206.5 101L216.8 120.1L202.3 105.9Z\" fill=\"#fff\" fill-opacity=\".2\"/><circle cx=\"207.8\" cy=\"99.4\" r=\"2.3\" fill=\"url(#wsGoldV)\"/><path d=\"M117.1 205.7L45.4 76.7L47 75.8L122.9 202.3Z\" fill=\"url(#wsSpire)\"/><path d=\"M47.2 77.9L34 95.1L53.7 89.2Z\" style=\"fill:__FLAG__\" stroke=\"#0B1220\" stroke-opacity=\".28\" stroke-width=\".6\"/><path d=\"M47.2 77.9L34 95.1L50.5 83.6Z\" fill=\"#fff\" fill-opacity=\".2\"/><circle cx=\"46.2\" cy=\"76.2\" r=\"2.3\" fill=\"url(#wsGoldV)\"/><path d=\"M117.1 202.3L193 75.8L194.6 76.7L122.9 205.7Z\" fill=\"url(#wsSpire)\"/><path d=\"M192.8 77.9L206 95.1L186.3 89.2Z\" style=\"fill:__FLAG__\" stroke=\"#0B1220\" stroke-opacity=\".28\" stroke-width=\".6\"/><path d=\"M192.8 77.9L206 95.1L189.5 83.6Z\" fill=\"#fff\" fill-opacity=\".2\"/><circle cx=\"193.8\" cy=\"76.2\" r=\"2.3\" fill=\"url(#wsGoldV)\"/><path d=\"M116.8 205.2L65.5 56.9L67.2 56.3L123.2 202.8Z\" fill=\"url(#wsSpire)\"/><path d=\"M67 58.5L51.4 73.1L71.5 70.7Z\" style=\"fill:__FLAG__\" stroke=\"#0B1220\" stroke-opacity=\".28\" stroke-width=\".6\"/><path d=\"M67 58.5L51.4 73.1L69.3 64.6Z\" fill=\"#fff\" fill-opacity=\".2\"/><circle cx=\"66.3\" cy=\"56.6\" r=\"2.3\" fill=\"url(#wsGoldV)\"/><path d=\"M116.8 202.8L172.8 56.3L174.5 56.9L123.2 205.2Z\" fill=\"url(#wsSpire)\"/><path d=\"M173 58.5L188.6 73.1L168.5 70.7Z\" style=\"fill:__FLAG__\" stroke=\"#0B1220\" stroke-opacity=\".28\" stroke-width=\".6\"/><path d=\"M173 58.5L188.6 73.1L170.7 64.6Z\" fill=\"#fff\" fill-opacity=\".2\"/><circle cx=\"173.7\" cy=\"56.6\" r=\"2.3\" fill=\"url(#wsGoldV)\"/><path d=\"M116.7 204.6L90.6 42.6L92.4 42.3L123.3 203.4Z\" fill=\"url(#wsSpire)\"/><path d=\"M91.9 44.4L74.3 56.1L94.1 57.2Z\" style=\"fill:__FLAG__\" stroke=\"#0B1220\" stroke-opacity=\".28\" stroke-width=\".6\"/><path d=\"M91.9 44.4L74.3 56.1L93 50.8Z\" fill=\"#fff\" fill-opacity=\".2\"/><circle cx=\"91.5\" cy=\"42.4\" r=\"2.3\" fill=\"url(#wsGoldV)\"/><path d=\"M116.7 203.4L147.6 42.3L149.4 42.6L123.3 204.6Z\" fill=\"url(#wsSpire)\"/><path d=\"M148.1 44.4L165.7 56.1L145.9 57.2Z\" style=\"fill:__FLAG__\" stroke=\"#0B1220\" stroke-opacity=\".28\" stroke-width=\".6\"/><path d=\"M148.1 44.4L165.7 56.1L147 50.8Z\" fill=\"#fff\" fill-opacity=\".2\"/><circle cx=\"148.5\" cy=\"42.4\" r=\"2.3\" fill=\"url(#wsGoldV)\"/><path d=\"M116.6 204L119.1 36L120.9 36L123.4 204Z\" fill=\"url(#wsSpire)\"/><path d=\"M120 38L139 46.5L120 51Z\" style=\"fill:__FLAG__\" stroke=\"#0B1220\" stroke-opacity=\".28\" stroke-width=\".6\"/><path d=\"M120 38L139 46.5L120 44.5Z\" fill=\"#fff\" fill-opacity=\".2\"/><circle cx=\"120\" cy=\"36\" r=\"2.3\" fill=\"url(#wsGoldV)\"/></g><circle cx=\"120\" cy=\"156\" r=\"37\" fill=\"url(#wsBall)\"/><g clip-path=\"url(#wsBallClip)\"><path d=\"M98.1 128.2L102.4 132.8L105.8 138L108.3 143.7L109.9 149.8L110.4 156L109.9 162.2L108.3 168.3L105.8 174L102.4 179.2L98.1 183.8\" fill=\"none\" stroke=\"#B5122E\" stroke-width=\".9\" stroke-opacity=\".55\"/><path d=\"M102.4 132.8l-3.6 0.9\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M102.4 132.8l1.8 -3.3\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M105.8 138l-3.7 0.3\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M105.8 138l2.3 -2.9\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M108.3 143.7l-3.7 -0.3\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M108.3 143.7l2.7 -2.5\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M109.9 149.8l-3.6 -0.9\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M109.9 149.8l3.1 -2\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M110.4 156l-3.4 -1.5\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M110.4 156l3.4 -1.5\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M109.9 162.2l-3.1 -2\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M109.9 162.2l3.6 -0.9\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M108.3 168.3l-2.7 -2.5\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M108.3 168.3l3.7 -0.3\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M105.8 174l-2.3 -2.9\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M105.8 174l3.7 0.3\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M102.4 179.2l-1.8 -3.3\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M102.4 179.2l3.6 0.9\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M141.9 128.2L137.6 132.8L134.2 138L131.7 143.7L130.1 149.8L129.6 156L130.1 162.2L131.7 168.3L134.2 174L137.6 179.2L141.9 183.8\" fill=\"none\" stroke=\"#B5122E\" stroke-width=\".9\" stroke-opacity=\".55\"/><path d=\"M137.6 132.8l1.8 3.3\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M137.6 132.8l-3.6 -0.9\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M134.2 138l2.3 2.9\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M134.2 138l-3.7 -0.3\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M131.7 143.7l2.7 2.5\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M131.7 143.7l-3.7 0.3\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M130.1 149.8l3.1 2\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M130.1 149.8l-3.6 0.9\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M129.6 156l3.4 1.5\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M129.6 156l-3.4 1.5\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M130.1 162.2l3.6 0.9\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M130.1 162.2l-3.1 2\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M131.7 168.3l3.7 0.3\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M131.7 168.3l-2.7 2.5\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M134.2 174l3.7 -0.3\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M134.2 174l-2.3 2.9\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M137.6 179.2l3.6 -0.9\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/><path d=\"M137.6 179.2l-1.8 3.3\" stroke=\"#C8102E\" stroke-width=\"1.15\" stroke-linecap=\"round\"/></g><ellipse cx=\"108\" cy=\"139\" rx=\"12\" ry=\"7\" fill=\"#fff\" fill-opacity=\".6\" transform=\"rotate(-28 108 139)\"/><path d=\"M84 160a36 36 0 0 0 72 0\" fill=\"none\" stroke=\"#6E6552\" stroke-opacity=\".22\" stroke-width=\"3\"/><g filter=\"url(#wsSculpt)\"><path d=\"M73 193A47 9.5 0 0 0 167 193C167 216 142 233 130 237L110 237C98 233 73 216 73 193Z\" fill=\"url(#wsGold)\"/><path d=\"M111 236h18l-3 24h-12z\" fill=\"url(#wsGold)\"/><ellipse cx=\"120\" cy=\"247\" rx=\"13.5\" ry=\"5.5\" fill=\"url(#wsGold)\"/><path d=\"M114 258h12q2 14 24 20v5H90v-5q22-6 24-20z\" fill=\"url(#wsGold)\"/><rect x=\"82\" y=\"282\" width=\"76\" height=\"7\" rx=\"2.5\" fill=\"url(#wsGold)\"/></g><path d=\"M76 203Q120 219 164 203\" fill=\"none\" stroke=\"#7C580F\" stroke-opacity=\".55\" stroke-width=\"1\"/><path d=\"M79 209Q120 225 161 209\" fill=\"none\" stroke=\"#FFFEF6\" stroke-opacity=\".5\" stroke-width=\".8\"/><path d=\"M72 289h96l9 36H63z\" fill=\"url(#wsPlinth)\" stroke=\"#C9962E\" stroke-opacity=\".45\" stroke-width=\".8\"/><rect x=\"58\" y=\"324\" width=\"124\" height=\"9\" rx=\"2\" fill=\"url(#wsPlinth)\" stroke=\"#C9962E\" stroke-opacity=\".45\" stroke-width=\".8\"/><rect x=\"58\" y=\"324\" width=\"124\" height=\"1.8\" fill=\"#F7D877\" fill-opacity=\".8\"/><g filter=\"url(#wsSculpt)\"><rect x=\"84\" y=\"296\" width=\"72\" height=\"23\" rx=\"2.5\" fill=\"url(#wsGoldV)\"/></g><rect x=\"85.5\" y=\"297.5\" width=\"69\" height=\"20\" rx=\"1.6\" fill=\"none\" stroke=\"#7C580F\" stroke-opacity=\".6\" stroke-width=\".7\"/><text x=\"120\" y=\"306.5\" text-anchor=\"middle\" font-family=\"Arial Narrow,Helvetica Neue,Arial,sans-serif\" font-weight=\"700\" font-size=\"7.4\" letter-spacing=\"1.3\" fill=\"#4A3608\">WORLD SERIES</text><text x=\"120\" y=\"315\" text-anchor=\"middle\" font-family=\"ui-monospace,Menlo,monospace\" font-weight=\"700\" font-size=\"6.6\" letter-spacing=\"1.1\" fill=\"#5E450B\">__L2__</text><g fill=\"#FFFEF6\"><path d=\"M38 62l1.6 5.4L45 69l-5.4 1.6L38 76l-1.6-5.4L31 69l5.4-1.6z\"/><path d=\"M214 58l1.2 4L219 63.2l-3.8 1.2L214 68.4l-1.2-4L209 63.2l3.8-1.2z\" fill-opacity=\".85\"/><path d=\"M150 26l1 3.3 3.3 1-3.3 1-1 3.3-1-3.3-3.3-1 3.3-1z\" fill-opacity=\".8\"/></g>";
+
+function trophy(season) {
+  const flag = season ? COLOR[season.champion] : "#8496AC";
+  const art = TROPHY_ART.replaceAll("__FLAG__", flag)
+    .replace("__L2__", season ? `SEASON ${season.no}` : "");
+  const label = season
+    ? `World Series trophy, Season ${season.no}, won by ${season.champion}` : "";
+  return `<div class="ws-trophy${season ? "" : " ghost"}">
+    <svg viewBox="0 0 240 340" ${season ? `role="img" aria-label="${label}"` : 'aria-hidden="true"'}>${art}</svg></div>`;
+}
+
+function trophyCase() {
+  const you = viewer, them = opponentOf(viewer);
+  const closed = SEASON.seasons.filter((s) => s.complete);
+  const cases = [you, them].map((u) => {
+    const won = closed.filter((s) => s.champion === u);
+    const foot = won.length
+      ? won.map((s) => {
+          const ws = SEASON.series.find((x) => x.postseason && x.season === s.no);
+          const other = opponentOf(u);
+          return `<div><strong>Season ${s.no}</strong> · ${s.series[u]}–${s.series[other]} season${
+            ws ? ` · World Series ${ws.wins[u]}–${ws.wins[other]}` : ""} · ${
+            (s.ended || "").slice(0, 10)}</div>`;
+        }).join("")
+      : `<div>Nothing on the shelf yet — the next one is ${
+          SEASON.rules.season_length} series and a World Series away.</div>`;
+    return `<div class="case">
+      <div class="case-head"><b><i class="swatch" style="background:${COLOR[u]}"></i>${u}</b>
+        <span class="${won.length ? "has" : ""}">${won.length} ${
+          won.length === 1 ? "title" : "titles"}</span></div>
+      <div class="shelf">${won.length ? won.map(trophy).join("") : trophy(null)}</div>
+      <div class="shelf-edge"></div>
+      <div class="case-foot">${foot}</div></div>`;
+  }).join("");
+  return `<h2>Trophy case</h2><div class="cases">${cases}</div>`;
+}
+
 function renderSeason() {
   const you = viewer, them = opponentOf(viewer);
   const cur = SEASON.current, ls = SEASON.live_season;
-  const out = [];
+  const homeLeft = (ls && ls.home_left) || {};
+  // The trophy case leads the page: it is the one thing here that is finished.
+  const out = [trophyCase()];
 
   if (SEASON.pregame) {
     out.push(`<div class="empty" style="margin-top:28px">
@@ -1796,7 +1882,10 @@ function renderSeason() {
       they belong to the series but move neither side.${cur.host
         ? ` Played at <strong>${cur.host === you ? "your" : cur.host + "'s"}</strong> house${
             cur.postseason ? ", by advantage earned in the regular season" : ""}.`
-        : " Neither of you earned home field, so there is no designated host."}</p>`);
+        : cur.postseason
+          ? " Neither of you earned home field, so there is no designated host."
+          : ` Either of you can host it — ${you} has ${homeLeft[you] ?? "?"} home series
+             left this season, ${them} has ${homeLeft[them] ?? "?"}.`}</p>`);
     // A series that has just opened has nothing to tabulate. An empty table
     // with headers reads as data that failed to load; a sentence does not.
     // Result before the scores, so both run columns land on the same side of
@@ -1827,7 +1916,7 @@ function renderSeason() {
   const w = (ls && ls.series[you]) || 0, l = (ls && ls.series[them]) || 0;
   const done = w + l, len = SEASON.rules.season_length;
   const hosted = (ls && ls.hosted) || {};
-  const breaches = (ls && ls.venue_breaches) || 0;
+  const overQuota = (ls && ls.over_quota) || 0;
   out.push(`<div class="feats">
     <div class="feat"><div class="k">Series</div><div class="v">${w}–${l}</div>
       <div class="s">${done} of ${len} played</div></div>
@@ -1839,9 +1928,10 @@ function renderSeason() {
     <div class="feat"><div class="k">Titles</div><div class="v">${
       SEASON.titles[you] || 0}–${SEASON.titles[them] || 0}</div>
       <div class="s">${you} — ${them}</div></div></div>`);
-  if (breaches) out.push(`<div class="warn" style="margin-top:12px">${breaches}
-    game(s) this season were played at the wrong house. Hosting alternates by series
-    so the home dates split ${len / 2}–${len / 2}.</div>`);
+  if (overQuota) out.push(`<div class="warn" style="margin-top:12px">${overQuota}
+    series this season ${overQuota === 1 ? "was" : "were"} hosted by someone who had
+    already used all ${SEASON.rules.home_quota} of his home series, so the season can no
+    longer split evenly.</div>`);
 
   // ---- the ladder, lit only once a tier is actually settled
   //
@@ -1864,29 +1954,6 @@ function renderSeason() {
   out.push(`<div class="card scroll"><table class="ladder"><thead><tr>
       <th>Season</th><th>World Series advantage</th></tr></thead><tbody>`
     + ladderRows(settled && w !== l ? lead : -1) + `</tbody></table></div>`);
-
-  // ---- trophy case
-  out.push(`<h2>Trophy case</h2>`);
-  out.push(`<div class="trophies">` + [you, them].map((u) => `
-    <div class="trophy">
-      <span class="count" style="color:${COLOR[u]}">${SEASON.titles[u] || 0}</span>
-      <span class="who"><b>${u}</b>
-        <span>${SEASON.titles[u] === 1 ? "championship" : "championships"}</span>
-        <span class="pennants">${"🏆".repeat(SEASON.titles[u] || 0)}</span></span>
-    </div>`).join("") + `</div>`);
-
-  const closed = SEASON.seasons.filter((s) => s.complete);
-  out.push(closed.length
-    ? `<div class="card scroll" style="margin-top:14px"><table><thead><tr>
-        <th>Season</th><th>Series</th><th>Champion</th><th>Ended</th></tr></thead><tbody>`
-      + closed.map((s) => `<tr><td>${s.no}</td>
-          <td>${s.series[you]}–${s.series[them]}</td>
-          <td class="name"><span class="dot" style="background:${COLOR[s.champion]}"></span>${s.champion}</td>
-          <td class="name">${(s.ended || "").slice(0, 10)}</td></tr>`).join("")
-      + `</tbody></table></div>`
-    : `<p class="note">No season has been completed yet. The first champion is
-       ${SEASON.rules.season_length} series and a best-of-${
-         SEASON.rules.world_series_wins * 2 - 1} away.</p>`);
 
   $("season-body").innerHTML = out.join("");
 }
@@ -1921,14 +1988,12 @@ function renderRules() {
     running up a series already decided.</p>
 
     <h3>Home dates</h3>
-    <p><strong>Hosting alternates every series</strong>, so a season splits
-    ${R.season_length / 2}–${R.season_length / 2} and neither of you goes a whole season
-    without last at-bat. A series is played at one house start to finish;
-    ${R.first_host} hosts the first series of a season.</p>
-    <p class="note">This is the rule with the most catching up to do. Every one of the
-    ${DATA.games.length} games played before the league opened was hosted by ${P1} — ${P2}
-    has never had last at-bat, not once. The site checks who actually hosted each game and
-    says so when a series was played at the wrong house.</p>
+    <p><strong>Each of you hosts ${R.home_quota} series a season</strong>, in whatever
+    order suits — there is no schedule and nothing has to alternate. A series is played
+    at one house start to finish, and it belongs to whoever hosted its first game.</p>
+    <p class="note">The site reads the host off each game, keeps the count, and speaks up
+    only if someone hosts more than ${R.home_quota} — the point where the season can no
+    longer split evenly. Before the league opened, every game was hosted by ${P1}.</p>
     <p>The postseason is the exception: home field there is <em>won</em>, not rostered, so
     the World Series is played wherever the advantage ladder says. A season that finishes
     level earns nobody home field, and no host is designated.</p>
@@ -1947,8 +2012,8 @@ function renderRules() {
     <div class="card scroll"><table class="ladder"><thead><tr>
       <th>Season</th><th>World Series advantage</th></tr></thead><tbody>${
         ladderRows(-1)}</tbody></table></div>
-    <p class="note">Home field is a real prize here: every game these two have ever played
-    was hosted by ${P1}, so ${P2} has never once had last at-bat.</p>
+    <p class="note">Home field is a real prize here: the regular season splits its home
+    dates evenly, so the World Series is the only place last at-bat can be won.</p>
 
     <h3>The rotation rule</h3>
     <p><strong>A pitcher may start only once per series.</strong> A best-of-${games} can

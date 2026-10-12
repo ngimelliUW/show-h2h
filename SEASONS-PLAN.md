@@ -51,21 +51,29 @@ banks real wins instead of watching a single lifetime counter.
 
 ## 3b. Home dates
 
-**Hosting alternates every series**, so an eight-series season splits 4–4 and
-neither player goes a whole season without last at-bat. A series is played at
-one house from start to finish, and `FIRST_HOST` names who takes the first
-series of a season — defaulting to TallThibaut48, since he has never hosted.
+**Each player hosts half the series in a season — four of eight — in any
+order.** There is no schedule and nothing has to alternate. A series is played
+at one house from start to finish and belongs to whoever hosted its first game.
 
-This is the rule with the most ground to make up. **All 126 games played before
-the league opened were hosted by LinguiniEater**, so his opponent has never once
-had last at-bat. With 44 of those games decided by a single run, that is not a
-cosmetic imbalance.
+The site reads the host off `games.home_username`, keeps the count, and flags
+only two things: a series hosted by someone who has already used all four of
+his (the point where the season can no longer split evenly), and a series split
+across two houses. Once one player has hosted four, the rest of the season is
+shown as the other's to host.
 
-The postseason is the exception: home field there is *won*, not scheduled, so
+*Changed 2026-10-11.* The original rule was strict alternation from a
+configured `FIRST_HOST`. Season 1 split 4–4 exactly as intended but not in
+alternating order, and the site spent the season reporting 22 games "at the
+wrong house" for a season that had met the actual goal. The goal was always the
+even split; the alternation was just one way to get there.
+
+The reason the rule exists is unchanged: **all 126 games played before the
+league opened were hosted by LinguiniEater**, and with 44 of those decided by a
+single run, last at-bat is not cosmetic.
+
+The postseason is the exception: home field there is *won*, not chosen, so
 the World Series is played wherever the advantage ladder puts it. A season that
 finishes level earns nobody home field and designates no host.
-
-Audited from `games.home_username` against the series' scheduled host.
 
 ## 4. The advantage ladder
 
@@ -123,7 +131,7 @@ eliminates one of two teams is just a shorter World Series with a worse name.
 
 The postseason earns its weight through **constraint and ceremony**, not extra
 rounds: the advantage ladder applies, the rotation rule tightens (below), and
-the champion takes a permanent pennant in the site's trophy case.
+the champion takes a permanent trophy in his cabinet in the site's trophy case.
 
 Deliberately **no mechanical carry-over for the defending champion.** Advantages
 are re-earned every season. A champion who also starts the next World Series
