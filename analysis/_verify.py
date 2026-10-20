@@ -108,7 +108,9 @@ bad = db.query("""
     SELECT played_at, innings, my_runs, their_runs, status, result FROM v_h2h_games
     WHERE (status = 'final'      AND my_runs = their_runs)                  -- tie with a winner
        OR (status = 'final'      AND innings < 5)                           -- short and counted
-       OR (status = 'no_contest' AND innings >= 5)                          -- regulation, voided
+       OR (status = 'no_contest' AND innings >= 5                           -- regulation, voided
+           AND (SELECT MIN(inning_no) FROM game_innings i
+                WHERE i.game_uuid = v_h2h_games.game_uuid) = 1)                -- (not a partial game)
        OR (status <> 'final'     AND result IS NOT NULL)                    -- decision it shouldn't have
 """)
 check("no game that counts was won by the side that wasn't ahead", bad.empty,
