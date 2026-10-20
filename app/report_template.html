@@ -867,9 +867,18 @@ function rebuildView() {
   };
 }
 
+// "Last N" means the last N games that count: a no contest inside the window is
+// still shown, but doesn't take up one of the N, or "Last 10" reads 9-0.
 function windowGames() {
   const all = DATA.games.map((g, i) => i);
-  return window_ > 0 ? all.slice(-window_) : all;
+  if (window_ <= 0) return all;
+  const out = [];
+  let n = 0;
+  for (let i = all.length - 1; i >= 0 && n < window_; i--) {
+    out.push(i);
+    if (DATA.games[i].st !== "no_contest") n++;
+  }
+  return out.reverse();
 }
 
 function windowSet() {
@@ -2036,9 +2045,16 @@ function renderSeason() {
   const done = w + l, len = SEASON.rules.season_length;
   const hosted = (ls && ls.hosted) || {};
   const overQuota = (ls && ls.over_quota) || 0;
+  // Games won across this season's series, World Series excluded. Shown for
+  // interest only: the standing above is series.
+  const seasonSeries = SEASON.series.filter((x) => ls && x.season === ls.no && !x.postseason);
+  const gw = seasonSeries.reduce((a, x) => a + (x.wins[you] || 0), 0);
+  const gl = seasonSeries.reduce((a, x) => a + (x.wins[them] || 0), 0);
   out.push(`<div class="feats">
     <div class="feat"><div class="k">Series</div><div class="v">${w}–${l}</div>
       <div class="s">${done} of ${len} played</div></div>
+    <div class="feat"><div class="k">Games</div><div class="v">${gw}–${gl}</div>
+      <div class="s">this season, World Series aside</div></div>
     <div class="feat"><div class="k">Remaining</div><div class="v">${len - done}</div>
       <div class="s">then the World Series</div></div>
     <div class="feat"><div class="k">Home dates</div><div class="v">${

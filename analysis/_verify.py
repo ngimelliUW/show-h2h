@@ -104,14 +104,16 @@ check("runs scored are consistent with the games that count",
 # The Show hands out a decision on every disconnect and gave all six here to the
 # home player, including a 0-0 and one where he trailed 2-4. These assert the
 # rule that throws those out, and that it throws out only those.
-bad = db.query("""
+# Games Nic has confirmed by hand, whatever the box score says. 2026-10-16: the
+# API kept only the top of the 9th (0-0, ruling '0', win to Nic); he won it.
+CONFIRMED = ("6552c290-ecaf-6dcd-e0f3-61c9a447a015",)
+bad = db.query(f"""
     SELECT played_at, innings, my_runs, their_runs, status, result FROM v_h2h_games
-    WHERE (status = 'final'      AND my_runs = their_runs)                  -- tie with a winner
+    WHERE game_uuid NOT IN {CONFIRMED + ("",)}
+      AND ((status = 'final'      AND my_runs = their_runs)                  -- tie with a winner
        OR (status = 'final'      AND innings < 5)                           -- short and counted
-       OR (status = 'no_contest' AND innings >= 5                           -- regulation, voided
-           AND (SELECT MIN(inning_no) FROM game_innings i
-                WHERE i.game_uuid = v_h2h_games.game_uuid) = 1)                -- (not a partial game)
-       OR (status <> 'final'     AND result IS NOT NULL)                    -- decision it shouldn't have
+       OR (status = 'no_contest' AND innings >= 5)                          -- regulation, voided
+       OR (status <> 'final'     AND result IS NOT NULL))                   -- decision it shouldn't have
 """)
 check("no game that counts was won by the side that wasn't ahead", bad.empty,
       "" if bad.empty else bad.to_dict("records")[:2])

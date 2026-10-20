@@ -291,11 +291,6 @@ FROM (
         CASE
             -- ruling is NULL for history-only rows (no box score fetched) and
             -- '0' for a normal finish. Neither is in question.
-            -- A line score that starts after the 1st is a game picked up
-            -- mid-way (one on 2026-10-16 was only the top of the 9th, 0-0,
-            -- with ruling '0' and a win handed out). Never a game: no contest.
-            WHEN (SELECT MIN(i.inning_no) FROM game_innings i
-                  WHERE i.game_uuid = g.game_uuid) > 1         THEN 'no_contest'
             WHEN g.ruling IS NULL OR g.ruling = '0'            THEN 'final'
             WHEN g.innings >= 5 AND g.home_runs <> g.away_runs THEN 'final'
             WHEN g.innings >= 5                                THEN 'tie'
